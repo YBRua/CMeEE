@@ -2,3 +2,5 @@ bert-base-chinese/
 data/
 logs/
 test_files/
+ckpts/
+__pycache__/
