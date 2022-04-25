@@ -129,8 +129,6 @@ class EEDataset(Dataset):
             logger.info(f"Cache data to {cache_file}")
 
     def _preprocess(self, examples: List[InputExample], tokenizer) -> list:
-        '''NOTE: This function is what you need to modify for Nested NER.
-        '''
         is_test = examples[0].entities is None
         data = []
 
@@ -204,15 +202,13 @@ class CollateFnForEE:
         self.for_nested_ner = for_nested_ner
        
     def __call__(self, batch) -> dict:
-        '''NOTE: This function is what you need to modify for Nested NER.
-        '''
         inputs = [x[0] for x in batch]
         no_decode_flag = batch[0][1]
 
         input_ids = [x[0]  for x in inputs]
         if self.for_nested_ner:
-            # TODO
-            pass
+            labels1 = [x[1][0] for x in inputs] if len(inputs[0]) > 1 else None
+            labels2 = [x[1][1] for x in inputs] if len(inputs[0]) > 1 else None
         else:
             labels = [x[1]  for x in inputs] if len(inputs[0]) > 1 else None
     
@@ -226,8 +222,8 @@ class CollateFnForEE:
             
             if labels is not None:
                 if self.for_nested_ner:
-                    # TODO
-                    pass
+                    labels1[i] += [self.label_pad_token_id] * _delta_len
+                    labels2[i] += [self.label_pad_token_id] * _delta_len
                 else:
                     labels[i] += [self.label_pad_token_id] * _delta_len
 
@@ -242,8 +238,8 @@ class CollateFnForEE:
             inputs = {
                 "input_ids": torch.tensor(input_ids, dtype=torch.long),
                 "attention_mask": attention_mask,
-                "labels": None, # modify this
-                "labels2": None, # modify this
+                "labels": labels1, # modify this
+                "labels2": labels2, # modify this
                 "no_decode": no_decode_flag
             }
 
