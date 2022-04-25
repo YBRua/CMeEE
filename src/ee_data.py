@@ -134,35 +134,57 @@ class EEDataset(Dataset):
         is_test = examples[0].entities is None
         data = []
 
-        label2id = EE_label2id
+        if self.for_nested_ner:
+            label2id1 = EE_label2id1
+            label2id2 = EE_label2id2
+        else:
+            label2id = EE_label2id
 
         for example in examples:
             if is_test:
                 _sentence_id, text = example.to_ner_task(self.for_nested_ner)
                 label = repeat(None, len(text))
             else:
+                # For NestedNER, label = (label1, label2)
                 _sentence_id, text, label = example.to_ner_task(self.for_nested_ner)
 
             tokens = []
             label_ids = None if is_test else []
+            label1_ids = None if is_test else []
+            label2_ids = None if is_test else []
             
-            for word, L in zip(text, label):
-                token = tokenizer.tokenize(word)
-                if not token:
-                    token = [tokenizer.unk_token]
-                tokens.extend(token)
+            if self.for_nested_ner:
+                for word, (L1, L2) in zip(text, label):
+                    token = tokenizer.tokenize(word)
+                    if not token:
+                        token = [tokenizer.unk_token]
+                    tokens.extend(token)
 
-                if not is_test:
-                    label_ids.extend([label2id[L]] + [tokenizer.pad_token_id] * (len(token) - 1))
+                    if not is_test:
+                        label1_ids.extend([label2id1[L1]] + [tokenizer.pad_token_id] * (len(token) - 1))
+                        label2_ids.extend([label2id2[L2]] + [tokenizer.pad_token_id] * (len(token) - 1))
+            else:
+                for word, L in zip(text, label):
+                    token = tokenizer.tokenize(word)
+                    if not token:
+                        token = [tokenizer.unk_token]
+                    tokens.extend(token)
+
+                    if not is_test:
+                        label_ids.extend([label2id[L]] + [tokenizer.pad_token_id] * (len(token) - 1))
 
             
             tokens = [tokenizer.cls_token] + tokens[: self.max_length - 2] + [tokenizer.sep_token]
             token_ids = tokenizer.convert_tokens_to_ids(tokens)
 
             if not is_test:
-                label_ids = [label2id[NO_ENT]] + label_ids[: self.max_length - 2] + [label2id[NO_ENT]]
-                
-                data.append((token_ids, label_ids))
+                if self.for_nested_ner:
+                    label1_ids = [label2id1[NO_ENT]] + label1_ids[: self.max_length - 2] + [label2id1[NO_ENT]]
+                    label2_ids = [label2id2[NO_ENT]] + label2_ids[: self.max_length - 2] + [label2id2[NO_ENT]]
+                    data.append((token_ids, (label1_ids, label2_ids)))
+                else:
+                    label_ids = [label2id[NO_ENT]] + label_ids[: self.max_length - 2] + [label2id[NO_ENT]]
+                    data.append((token_ids, label_ids))
             else:
                 data.append((token_ids,))
 
@@ -188,7 +210,11 @@ class CollateFnForEE:
         no_decode_flag = batch[0][1]
 
         input_ids = [x[0]  for x in inputs]
-        labels    = [x[1]  for x in inputs] if len(inputs[0]) > 1 else None
+        if self.for_nested_ner:
+            # TODO
+            pass
+        else:
+            labels = [x[1]  for x in inputs] if len(inputs[0]) > 1 else None
     
         max_len = max(map(len, input_ids))
         attention_mask = torch.zeros((len(batch), max_len), dtype=torch.long)
@@ -199,7 +225,11 @@ class CollateFnForEE:
             input_ids[i] += [self.pad_token_id] * _delta_len
             
             if labels is not None:
-                labels[i] += [self.label_pad_token_id] * _delta_len
+                if self.for_nested_ner:
+                    # TODO
+                    pass
+                else:
+                    labels[i] += [self.label_pad_token_id] * _delta_len
 
         if not self.for_nested_ner:
             inputs = {
