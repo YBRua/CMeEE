@@ -44,8 +44,6 @@ class InputExample:
         self.entities = entities
 
     def to_ner_task(self, for_nested_ner: bool = False):    
-        '''NOTE: This function is what you need to modify for Nested NER.
-        '''
         if self.entities is None:
             return self.sentence_id, self.text
         else:
@@ -72,9 +70,11 @@ class InputExample:
                 if not for_nested_ner:
                     _write_label(label, entity_type, start_idx, end_idx)
                 else:
-                    '''NOTE
-
-                    '''
+                    # use label2 if label1 has already been written
+                    if label1[start_idx] != NO_ENT:
+                        _write_label(label2, entity_type, start_idx, end_idx)
+                    else:
+                        _write_label(label1, entity_type, start_idx, end_idx)
 
             if not for_nested_ner:
                 return self.sentence_id, self.text, label
