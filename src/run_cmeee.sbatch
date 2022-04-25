@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=run_cmeee
-#SBATCH --partition=dgx2
+#SBATCH --partition=a100
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --ntasks-per-node=1
