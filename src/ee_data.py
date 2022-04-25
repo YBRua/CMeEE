@@ -226,8 +226,8 @@ if __name__ == '__main__':
     from transformers import BertTokenizer
 
    
-    MODEL_NAME = "/mnt/lustre/sjtu/home/lfd98/Dataset/transformers/bert-base-chinese"
-    CBLUE_ROOT = "/mnt/lustre/sjtu/home/ycl25/remote/cmeee/data/CBLUEDatasets"
+    MODEL_NAME = "../bert-base-chinese"
+    CBLUE_ROOT = "../data/CBLUEDatasets"
 
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
     dataset = EEDataset(CBLUE_ROOT, mode="dev", max_length=10, tokenizer=tokenizer, for_nested_ner=False)
