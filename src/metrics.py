@@ -209,7 +209,8 @@ def extract_entities(
                 start, end = _get_entity_boundary(sentence, idx, id2label)
                 entity = sentence[start:end]
                 etype = _determine_entity_type(entity, id2label)
-                sentence_entities.append((start, end, etype))
+                # end excludes the last token, have to fix this manually
+                sentence_entities.append((start, end - 1, etype))
                 idx = end
                 continue
             else:
