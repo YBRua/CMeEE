@@ -148,9 +148,11 @@ class BertForLinearHeadNestedNER(BertPreTrainedModel):
         self.config = config
 
         self.bert = BertModel(config)
-        '''NOTE: This is where to modify for Nested NER.
+        
+        # Two linear heads for NestedNER
+        self.munin = LinearClassifier(config.hidden_size, num_labels1, config.hidden_dropout_prob)
+        self.hugin = LinearClassifier(config.hidden_size, num_labels2, config.hidden_dropout_prob)
 
-        '''
         self.init_weights()
 
     def forward(
@@ -180,11 +182,10 @@ class BertForLinearHeadNestedNER(BertPreTrainedModel):
             return_dict=return_dict,
         )[0]
 
-        '''NOTE: This is where to modify for Nested NER.
+        output1 = self.munin.forward(sequence_output, labels, no_decode=no_decode)
+        output2 = self.hugin.forward(sequence_output, labels2, no_decode=no_decode)
 
-        Use the above function _group_ner_outputs for combining results.
-
-        '''
+        return _group_ner_outputs(output1, output2)
 
 
 class BertForCRFHeadNER(BertPreTrainedModel):
