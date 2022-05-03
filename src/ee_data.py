@@ -71,7 +71,11 @@ class InputExample:
                     _write_label(label, entity_type, start_idx, end_idx)
                 else:
                     # use label2 if label1 has already been written
-                    if label1[start_idx] != NO_ENT:
+                    # if label1[start_idx] != NO_ENT:
+                    #     _write_label(label2, entity_type, start_idx, end_idx)
+                    # else:
+                    #     _write_label(label1, entity_type, start_idx, end_idx)
+                    if 'sym' in entity_type:
                         _write_label(label2, entity_type, start_idx, end_idx)
                     else:
                         _write_label(label1, entity_type, start_idx, end_idx)
@@ -142,9 +146,14 @@ class EEDataset(Dataset):
             if is_test:
                 _sentence_id, text = example.to_ner_task(self.for_nested_ner)
                 label = repeat(None, len(text))
+                label1 = repeat(None, len(text))
+                label2 = repeat(None, len(text))
             else:
-                # For NestedNER, label = (label1, label2)
-                _sentence_id, text, label = example.to_ner_task(self.for_nested_ner)
+                if self.for_nested_ner:
+                    # For NestedNER, label = (label1, label2)
+                    _sentence_id, text, label1, label2 = example.to_ner_task(self.for_nested_ner)
+                else:
+                    _sentence_id, text, label = example.to_ner_task(self.for_nested_ner)
 
             tokens = []
             label_ids = None if is_test else []
@@ -152,7 +161,7 @@ class EEDataset(Dataset):
             label2_ids = None if is_test else []
             
             if self.for_nested_ner:
-                for word, (L1, L2) in zip(text, label):
+                for word, L1, L2 in zip(text, label1, label2):
                     token = tokenizer.tokenize(word)
                     if not token:
                         token = [tokenizer.unk_token]
@@ -220,11 +229,13 @@ class CollateFnForEE:
             _delta_len = max_len - len(_ids)
             input_ids[i] += [self.pad_token_id] * _delta_len
             
-            if labels is not None:
-                if self.for_nested_ner:
+            if self.for_nested_ner:
+                if labels1 is not None:
                     labels1[i] += [self.label_pad_token_id] * _delta_len
+                if labels2 is not None:
                     labels2[i] += [self.label_pad_token_id] * _delta_len
-                else:
+            else:
+                if labels is not None:
                     labels[i] += [self.label_pad_token_id] * _delta_len
 
         if not self.for_nested_ner:
@@ -238,8 +249,8 @@ class CollateFnForEE:
             inputs = {
                 "input_ids": torch.tensor(input_ids, dtype=torch.long),
                 "attention_mask": attention_mask,
-                "labels": labels1, # modify this
-                "labels2": labels2, # modify this
+                "labels": torch.tensor(labels1, dtype=torch.long) if labels1 is not None else None,
+                "labels2": torch.tensor(labels2, dtype=torch.long) if labels2 is not None else None,
                 "no_decode": no_decode_flag
             }
 
