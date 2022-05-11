@@ -94,7 +94,7 @@ class ComputeMetricsForNER:  # training_args  `--label_names labels `
         predictions[predictions == -100] = EE_label2id[NER_PAD]
         labels[labels == -100] = EE_label2id[NER_PAD]
 
-        true = 0
+        n_hit = 0
         tot_pred = 0
         tot_label = 0
         f1 = 0
@@ -107,11 +107,11 @@ class ComputeMetricsForNER:  # training_args  `--label_names labels `
             les = set(les)
             for pe in pes:
                 if pe in les:
-                    true += 1
+                    n_hit += 1
             tot_pred += len(pes)
             tot_label += len(les)
 
-        f1 = 2 * true / (tot_pred + tot_label)
+        f1 = 2 * n_hit / (tot_pred + tot_label)
 
         return {"f1": f1}
 
@@ -130,20 +130,20 @@ class ComputeMetricsForNestedNER:
         labels1[labels1 == -100] = EE_label2id[NER_PAD]
         labels2[labels2 == -100] = EE_label2id[NER_PAD]
 
-        true = 0
+        n_hit = 0
         tot_pred = 0
         tot_label = 0
         f1 = 0
 
-        true1, pred1, label1 = self._compute_hits(
+        n_hit1, n_pred1, n_label1 = self._compute_hits(
             predictions1, labels1, first_label=True)
-        true2, pred2, label2 = self._compute_hits(
+        n_hit2, n_pred2, n_label2 = self._compute_hits(
             predictions2, labels2, first_label=False)
-        true = true1 + true2
-        tot_pred = pred1 + pred2
-        tot_label = label1 + label2
+        n_hit = n_hit1 + n_hit2
+        tot_pred = n_pred1 + n_pred2
+        tot_label = n_label1 + n_label2
 
-        f1 = 2 * true / (tot_pred + tot_label)
+        f1 = 2 * n_hit / (tot_pred + tot_label)
 
         return {"f1": f1}
 
@@ -192,7 +192,6 @@ def extract_entities(
         id2label = EE_id2label1 if first_labels else EE_id2label2
 
     batch_entities = []  # List[List[(start_idx, end_idx, type)]]
-
     for sentence in batch_labels_or_preds:
         idx = 0
         sentence_entities = []

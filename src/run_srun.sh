@@ -1,10 +1,12 @@
+# srun -p a100 -N 1 -n 1 --gres=gpu:1 --pty /bin/bash
+
 CBLUE_ROOT=../data/CBLUEDatasets
   
 MODEL_TYPE=bert
 MODEL_PATH=../bert-base-chinese
 SEED=2022
 LABEL_NAMES=(labels)
-TASK_ID=0
+TASK_ID=3
 
 case ${TASK_ID} in
 0)
@@ -12,14 +14,14 @@ case ${TASK_ID} in
   ;;
 1)
   HEAD_TYPE=linear_nested
-  LABEL_NAMES=(labels,labels2)
+  LABEL_NAMES=(labels labels2)
   ;;
 2)
   HEAD_TYPE=crf
   ;;
 3)
   HEAD_TYPE=crf_nested
-  LABEL_NAMES=(labels,labels2)
+  LABEL_NAMES=(labels labels2)
   ;;
 *)
   echo "Error ${TASK_ID}"
@@ -77,4 +79,4 @@ python run_cmeee.py \
   \
   --cblue_root                  ${CBLUE_ROOT} \
   --max_length                  512 \
-  --label_names                 ${LABEL_NAMES}
+  --label_names                 ${LABEL_NAMES[@]}

@@ -75,6 +75,7 @@ class InputExample:
                     #     _write_label(label2, entity_type, start_idx, end_idx)
                     # else:
                     #     _write_label(label1, entity_type, start_idx, end_idx)
+                    # label2 contains and only contains 'sym' classes
                     if 'sym' in entity_type:
                         _write_label(label2, entity_type, start_idx, end_idx)
                     else:
@@ -162,11 +163,13 @@ class EEDataset(Dataset):
             
             if self.for_nested_ner:
                 for word, L1, L2 in zip(text, label1, label2):
+                    # convert word to tokens
                     token = tokenizer.tokenize(word)
                     if not token:
                         token = [tokenizer.unk_token]
                     tokens.extend(token)
 
+                    # convert label to label_ids
                     if not is_test:
                         label1_ids.extend([label2id1[L1]] + [tokenizer.pad_token_id] * (len(token) - 1))
                         label2_ids.extend([label2id2[L2]] + [tokenizer.pad_token_id] * (len(token) - 1))
@@ -180,10 +183,11 @@ class EEDataset(Dataset):
                     if not is_test:
                         label_ids.extend([label2id[L]] + [tokenizer.pad_token_id] * (len(token) - 1))
 
-            
+            # add [CLS] and [SEP]
             tokens = [tokenizer.cls_token] + tokens[: self.max_length - 2] + [tokenizer.sep_token]
             token_ids = tokenizer.convert_tokens_to_ids(tokens)
 
+            # add labels for [CLS] and [SEP]
             if not is_test:
                 if self.for_nested_ner:
                     label1_ids = [label2id1[NO_ENT]] + label1_ids[: self.max_length - 2] + [label2id1[NO_ENT]]

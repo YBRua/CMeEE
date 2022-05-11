@@ -5,6 +5,7 @@ from unicodedata import bidirectional
 
 import torch
 from dataclasses import dataclass
+import torch.nn.functional as F
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from torchcrf import CRF
@@ -56,29 +57,40 @@ class CRFClassifier(nn.Module):
     def __init__(self, hidden_size: int, num_labels: int, dropout: float):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
+        self.linear = nn.Linear(hidden_size, num_labels)
+        self.crf = CRF(num_labels, batch_first=True)
 
-        '''NOTE: This is where to modify for CRF.
+    def _pred_labels(self, hidden_states, mask, max_len, label_pad_token_id=NER_PAD_ID):
+        decoded = self.crf.decode(hidden_states, mask=mask)
+        pred_labels = [
+            F.pad(torch.tensor(label),
+            (0, max_len - len(label)),
+            mode='constant',
+            value=label_pad_token_id) for label in decoded]
+        return torch.stack(pred_labels).long()
 
-        '''
+    def forward(self, hidden_states, attention_mask, labels=None, no_decode=False, label_pad_token_id=NER_PAD_ID):
+        # hidden_states: B, L, H
 
-    def _pred_labels(self):
-        '''NOTE: This is where to modify for CRF.
-        
-        You need to finish the code to predict labels.
+        # attention_mask: B, L
+        # CRF accepts only ByteTensors
+        attention_mask = attention_mask == 1
+        bsz, max_len = attention_mask.shape
 
-        You can add input arguments.
-        
-        '''
-        # return pred_labels
+        # emission: B, L, ntags
+        emission = self.dropout(self.linear(hidden_states))
+        loss, pred_labels = None, None
 
-    def forward(self, hidden_states, attention_mask, labels=None, no_decode=False, label_pad_token_id=NER_PAD_ID):    
-        '''NOTE: This is where to modify for CRF.
-        
-        You need to finish the code to compute loss and predict labels.
+        if labels is None:
+            pred_labels = self._pred_labels(emission, attention_mask, max_len, label_pad_token_id)
+        else:
+            # use mean reduction, in line with LinearClassifier
+            logits = self.crf(emission, labels, mask=attention_mask, reduction='mean')
+            loss = - logits
+            if not no_decode:
+                pred_labels = self._pred_labels(emission, attention_mask, max_len, label_pad_token_id)
 
-
-        '''
-        # return NEROutputs(loss, pred_labels)
+        return NEROutputs(loss, pred_labels)
 
 
 def _group_ner_outputs(output1: NEROutputs, output2: NEROutputs):
@@ -150,8 +162,8 @@ class BertForLinearHeadNestedNER(BertPreTrainedModel):
         self.bert = BertModel(config)
         
         # Two linear heads for NestedNER
-        self.munin = LinearClassifier(config.hidden_size, num_labels1, config.hidden_dropout_prob)
-        self.hugin = LinearClassifier(config.hidden_size, num_labels2, config.hidden_dropout_prob)
+        self.head1 = LinearClassifier(config.hidden_size, num_labels1, config.hidden_dropout_prob)
+        self.head2 = LinearClassifier(config.hidden_size, num_labels2, config.hidden_dropout_prob)
 
         self.init_weights()
 
@@ -182,8 +194,57 @@ class BertForLinearHeadNestedNER(BertPreTrainedModel):
             return_dict=return_dict,
         )[0]
 
-        output1 = self.munin.forward(sequence_output, labels, no_decode=no_decode)
-        output2 = self.hugin.forward(sequence_output, labels2, no_decode=no_decode)
+        output1 = self.head1.forward(sequence_output, labels, no_decode=no_decode)
+        output2 = self.head2.forward(sequence_output, labels2, no_decode=no_decode)
+
+        return _group_ner_outputs(output1, output2)
+
+
+class BertForCRFHeadNestedNER(BertPreTrainedModel):
+    config_class = BertConfig
+    base_model_prefix = "bert"
+
+    def __init__(self, config: BertConfig, num_labels1: int, num_labels2: int):
+        super().__init__(config)
+        self.config = config
+
+        self.bert = BertModel(config)
+        
+        # Two linear heads for NestedNER
+        self.head1 = CRFClassifier(config.hidden_size, num_labels1, config.hidden_dropout_prob)
+        self.head2 = CRFClassifier(config.hidden_size, num_labels2, config.hidden_dropout_prob)
+
+        self.init_weights()
+
+    def forward(
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            labels=None,
+            labels2=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            no_decode=False,
+    ):
+        sequence_output = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )[0]
+
+        output1 = self.head1.forward(sequence_output, attention_mask, labels, no_decode=no_decode)
+        output2 = self.head2.forward(sequence_output, attention_mask, labels2, no_decode=no_decode)
 
         return _group_ner_outputs(output1, output2)
 

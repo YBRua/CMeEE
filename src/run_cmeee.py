@@ -12,7 +12,7 @@ from args import ModelConstructArgs, CBLUEDataArgs
 from logger import get_logger
 from ee_data import EE_label2id2, EEDataset, EE_NUM_LABELS1, EE_NUM_LABELS2, EE_NUM_LABELS, CollateFnForEE, \
     EE_label2id1, NER_PAD, EE_label2id
-from model import BertForCRFHeadNER, BertForLinearHeadNER,  BertForLinearHeadNestedNER, CRFClassifier, LinearClassifier
+from model import BertForCRFHeadNER, BertForLinearHeadNER,  BertForLinearHeadNestedNER, BertForCRFHeadNestedNER, CRFClassifier, LinearClassifier
 from metrics import ComputeMetricsForNER, ComputeMetricsForNestedNER, extract_entities
 from torch.nn import LSTM
 
@@ -20,6 +20,7 @@ MODEL_CLASS = {
     'linear': BertForLinearHeadNER, 
     'linear_nested': BertForLinearHeadNestedNER,
     'crf': BertForCRFHeadNER,
+    'crf_nested': BertForCRFHeadNestedNER
 }
 
 def get_logger_and_args(logger_name: str, _args: List[str] = None):
