@@ -161,33 +161,36 @@ class GlobalPtrDataset(Dataset):
                 _sent_id, text, labels = example.to_global_pointer_task()
             
             # tokenization
-            token2char_span_mapping = tokenizer(
-                text,
-                return_offsets_mapping=True,
-                max_length=MAX_LEN,
-                truncation=True)["offset_mapping"]
+            tokens = []
+            for word in text:
+                token = tokenizer.tokenize(word)
+                if not token:
+                    token = [tokenizer.unk_token]
+                assert len(token) == 1
+                tokens.extend(token)
 
-            # mapping from character index to token id
-            # <https://github.com/xhw205/GlobalPointer_torch/blob/main/data_loader.py>
-            char2tok_start = {j[0]: i for i, j in enumerate(token2char_span_mapping) if j != (0, 0)}
-            char2tok_end = {j[-1] - 1: i for i, j in enumerate(token2char_span_mapping) if j != (0, 0)}
-            encoder_txt = tokenizer.encode_plus(text, max_length=MAX_LEN, truncation=True)
-            input_ids = encoder_txt["input_ids"]
+            # add [CLS] and [SEP]
+            tokens = [tokenizer.cls_token] + tokens[: self.max_length - 2] + [tokenizer.sep_token]
+            token_ids = tokenizer.convert_tokens_to_ids(tokens)
 
             # create label matrix
             if is_test:
                 label_matrix = None
             else:
-                label_matrix = np.zeros((len(RAW_LABEL2ID), MAX_LEN, MAX_LEN))
-                for start, end, lb_id in labels:
-                    if start in char2tok_start and end in char2tok_end:
-                        start = char2tok_start[start]
-                        end = char2tok_end[end]
-                        labels[lb_id, start, end] = 1
-                label_matrix = label_matrix[:, :len(input_ids), :len(input_ids)]
-            data.append((input_ids, label_matrix))
+                label_matrix = np.zeros((len(RAW_LABEL2ID), len(token_ids), len(token_ids)))
+                for start, end, lid in labels:
+                    if start <= end and end < self.max_length - 2:
+                        # offset 1 due to [CLS] token at the beginning
+                        label_matrix[lid, start + 1, end + 1] = 1
+            data.append((token_ids, label_matrix))
         
         return data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
 
 
 class SeqTagDataset(Dataset):
@@ -302,9 +305,9 @@ class CollateFnForGlobalPtr:
         # label is None if is not training set
         input_ids = [item[0] for item in batch]
         label_matrix = [item[1] for item in batch]
+        max_len = max(map(len, input_ids))
         attention_mask = torch.zeros((len(batch), max_len), dtype=torch.long)
 
-        max_len = max(map(len, input_ids))
         # pad input ids and generate attention masks
         for i, _ids in enumerate(input_ids):
             attention_mask[i][:len(_ids)] = 1
@@ -393,8 +396,11 @@ if __name__ == '__main__':
     CBLUE_ROOT = "../data/CBLUEDatasets"
 
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
-    dataset = GlobalPtrDataset(CBLUE_ROOT, mode="dev", max_length=10, tokenizer=tokenizer, for_nested_ner=False)
+    dataset = GlobalPtrDataset(CBLUE_ROOT, mode="dev", max_length=16, tokenizer=tokenizer, for_nested_ner=False)
 
     batch = [dataset[0], dataset[1], dataset[2]]
     inputs = CollateFnForGlobalPtr(pad_token_id=tokenizer.pad_token_id, for_nested_ner=False)(batch)
     print(inputs)
+    print(inputs['labels'][1].shape)
+    for mtx in inputs['labels'][1]:
+        print(mtx)
