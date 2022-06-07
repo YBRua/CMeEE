@@ -1,18 +1,18 @@
-
-from audioop import bias
-from typing import Optional
-from unicodedata import bidirectional
-
 import torch
-from dataclasses import dataclass
+import numpy as np
 import torch.nn.functional as F
 from torch import nn
 from torch.nn import CrossEntropyLoss
 from torchcrf import CRF
 from transformers import BertPreTrainedModel, BertConfig, BertModel
 from transformers.file_utils import ModelOutput
+from dataclasses import dataclass
 
 from ee_data import EE_label2id1, NER_PAD
+from loss_funcs import GlobalPtrLoss
+
+from typing import Optional
+
 
 NER_PAD_ID = EE_label2id1[NER_PAD]
 
@@ -69,7 +69,10 @@ class CRFClassifier(nn.Module):
             value=label_pad_token_id) for label in decoded]
         return torch.stack(pred_labels).long()
 
-    def forward(self, hidden_states, attention_mask, labels=None, no_decode=False, label_pad_token_id=NER_PAD_ID):
+    def forward(
+            self,
+            hidden_states, attention_mask, labels=None,
+            no_decode=False, label_pad_token_id=NER_PAD_ID):
         # hidden_states: B, L, H
 
         # attention_mask: B, L
@@ -82,13 +85,17 @@ class CRFClassifier(nn.Module):
         loss, pred_labels = None, None
 
         if labels is None:
-            pred_labels = self._pred_labels(emission, attention_mask, max_len, label_pad_token_id)
+            pred_labels = self._pred_labels(
+                emission, attention_mask, max_len, label_pad_token_id)
         else:
             # use mean reduction, in line with LinearClassifier
-            logits = self.crf(emission, labels, mask=attention_mask, reduction='mean')
+            logits = self.crf(
+                emission, labels, mask=attention_mask, reduction='mean')
+
             loss = - logits
             if not no_decode:
-                pred_labels = self._pred_labels(emission, attention_mask, max_len, label_pad_token_id)
+                pred_labels = self._pred_labels(
+                    emission, attention_mask, max_len, label_pad_token_id)
 
         return NEROutputs(loss, pred_labels)
 
@@ -293,3 +300,136 @@ class BertForCRFHeadNER(BertPreTrainedModel):
         
         return output
 
+
+class BertForGlobalPointer(BertPreTrainedModel):
+    config_class = BertConfig
+    base_model_prefix = "bert"
+
+    def __init__(self, config: BertConfig, num_labels1: int, proj_dim: int = 64):
+        super().__init__(config)
+        self.config = config
+
+        self.bert = BertModel(config)
+        self.global_ptr = GlobalPtrHead(config.hidden_size, num_labels1, proj_dim)
+        self.init_weights()
+
+    def forward(
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            labels=None,
+            labels2=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            no_decode=False,
+    ):
+        # B, L, h
+        sequence_output = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )[0]
+        
+        output = self.global_ptr.forward(sequence_output, attention_mask, labels, no_decode=no_decode)
+
+        return output
+
+
+class GlobalPtrHead(nn.Module):
+    def __init__(self, hidden_size: int, num_labels:int , proj_dim: int = 64):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.proj_dim = proj_dim
+        self.num_labels = num_labels
+
+        self.global_ptr_projector = nn.Linear(self.hidden_size, proj_dim * num_labels * 2)
+        self.pos_embd = RoPE()
+        self.loss_fct = GlobalPtrLoss()
+            
+
+    def forward(self, hidden_states, attention_mask, labels=None, no_decode=False):
+        B, L = hidden_states.shape[:2]
+
+        # B, L, h -> B, L, h * num_labels * 2
+        projected = self.global_ptr_projector(hidden_states)
+
+        # B, L, num_labels, 2 * proj_dim
+        projected = projected.reshape(B, L, -1, 2 * self.proj_dim)
+
+        # qs, ks: B, L, num_labels, proj_dim
+        qs, ks = projected[..., :self.proj_dim], projected[..., self.proj_dim:]
+
+        qs = self.pos_embd(qs, self.proj_dim)
+        ks = self.pos_embd(ks, self.proj_dim)
+
+        logits = torch.einsum('bmhd, bnhd -> bhmn', qs, ks)
+
+        # padding mask
+        pad_mask = attention_mask.unsqueeze(1).unsqueeze(1).expand(B, self.num_labels, L, L)
+        # logits = logits*pad_mask - (1-pad_mask)*1e12
+        logits = torch.masked_fill(~pad_mask.bool(), logits, float('-inf'))
+
+        # tril mask
+        tril_mask = torch.tril(torch.ones_like(logits), diagonal=-1)
+        logits = torch.masked_fill(tril_mask.bool(), logits, float('-inf'))
+        logits = logits / self.proj_dim ** 0.5
+
+        loss = None
+
+        if labels is not None:
+            loss = self.loss_fct(logits, labels)
+
+        return NEROutputs(loss, logits)
+
+
+class RoPE(nn.Module):
+    # <https://github.com/xhw205/GlobalPointer_torch/blob/main/GlobalPointer.py>
+    def __init__(self):
+        super().__init__()
+
+    def sinusoidal_position_embedding(
+            self,
+            batch_size,
+            seq_len,
+            output_dim) -> torch.Tensor:
+        # L, 1
+        ks = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(-1)
+
+        # L, d // 2
+        indices = torch.arange(0, output_dim // 2, dtype=torch.float)
+        indices = torch.pow(10000, -2 * indices / output_dim)
+        pe = ks * indices
+
+        # L, d // 2, 2
+        pe = torch.stack([torch.sin(pe), torch.cos(pe)], dim=-1)
+
+        # B, L, d // 2, 2
+        pe = pe.repeat((batch_size, *([1]*len(pe.shape))))
+
+        # B, L, d
+        pe = torch.reshape(pe, (batch_size, seq_len, output_dim))
+        
+        return pe
+
+    def forward(self, x: torch.Tensor, output_dim: int):
+        B, L = x.shape[:2]
+        pe = self.sinusoidal_position_embedding(B, L, output_dim)
+
+        # B, L, 1, d
+        cos_pos = pe[..., None, 1::2].repeat_interleave(2, dim=-1)
+        sin_pos = pe[..., None, 0::2].repeat_interleave(2, dim=-1)
+
+        x1 = x
+        x2 = torch.stack([-x[..., 1::2], x[..., 0::2]], dim=-1).reshape(x1.shape)
+        return x1 * cos_pos + x2 * sin_pos
