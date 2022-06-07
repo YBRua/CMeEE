@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from ee_data import NER_PAD, _LABEL_RANK
 from ee_data import EE_label2id, EE_label2id1
@@ -84,7 +85,16 @@ class EvalPrediction(NamedTuple):
     label_ids: np.ndarray
 
 
-class ComputeMetricsForNER:  # training_args  `--label_names labels `
+class MetricsForGlobalPtr:
+    def __call__(self, eval_pred) -> dict:
+        predictions, labels = eval_pred
+        predictions = torch.gt(predictions, 0).float()
+        f1 = 2 * torch.sum(predictions * labels) / torch.sum(predictions + labels)
+
+        return {'f1': f1}
+
+
+class MetricsForBIOTagging:  # training_args  `--label_names labels `
     def __call__(self, eval_pred) -> dict:
         predictions, labels = eval_pred
         B, T = predictions.shape
@@ -99,8 +109,8 @@ class ComputeMetricsForNER:  # training_args  `--label_names labels `
         tot_label = 0
         f1 = 0
 
-        pred_entities = extract_entities(predictions)
-        label_entities = extract_entities(labels)
+        pred_entities = extract_entities_biotagging(predictions)
+        label_entities = extract_entities_biotagging(labels)
 
         for pes, les in zip(pred_entities, label_entities):
             pes = set(pes)
@@ -156,8 +166,8 @@ class ComputeMetricsForNestedNER:
         tot_pred = 0
         tot_label = 0
 
-        pred_entities = extract_entities(predictions, True, first_label)
-        label_entities = extract_entities(labels, True, first_label)
+        pred_entities = extract_entities_biotagging(predictions, True, first_label)
+        label_entities = extract_entities_biotagging(labels, True, first_label)
 
         for pes, les in zip(pred_entities, label_entities):
             pes = set(pes)
@@ -171,7 +181,7 @@ class ComputeMetricsForNestedNER:
         return true, tot_pred, tot_label
 
 
-def extract_entities(
+def extract_entities_biotagging(
         batch_labels_or_preds: np.ndarray,
         for_nested_ner: bool = False,
         first_labels: bool = True) -> List[List[tuple]]:
@@ -225,7 +235,7 @@ if __name__ == '__main__':
     predictions = np.load('../test_files/predictions.npy')
     labels = np.load('../test_files/labels.npy')
 
-    metrics = ComputeMetricsForNER()(EvalPrediction(predictions, labels))
+    metrics = MetricsForBIOTagging()(EvalPrediction(predictions, labels))
 
     if metrics["f1"] is None:
         print("f1-score is None")
