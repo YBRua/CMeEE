@@ -1,20 +1,15 @@
 
 import json
-from lib2to3.pgen2.token import NOTEQUAL
 from os.path import join
 from typing import List
 
-from sklearn.metrics import precision_recall_fscore_support
-from transformers.models.bert.modeling_bert import BertEmbeddings, BertAttention
-from transformers import set_seed, BertTokenizer, Trainer, HfArgumentParser, TrainingArguments, BertLayer
+from transformers import set_seed, BertTokenizer, Trainer, HfArgumentParser, TrainingArguments
 
 from args import ModelConstructArgs, CBLUEDataArgs
 from logger import get_logger
-from ee_data import EE_label2id2, EEDataset, EE_NUM_LABELS1, EE_NUM_LABELS2, EE_NUM_LABELS, CollateFnForEE, \
-    EE_label2id1, NER_PAD, EE_label2id
-from model import BertForCRFHeadNER, BertForLinearHeadNER,  BertForLinearHeadNestedNER, BertForCRFHeadNestedNER, CRFClassifier, LinearClassifier
+from ee_data import SeqTagDataset, EE_NUM_LABELS1, EE_NUM_LABELS2, EE_NUM_LABELS, CollateFnForNER
+from model import BertForCRFHeadNER, BertForLinearHeadNER,  BertForLinearHeadNestedNER, BertForCRFHeadNestedNER
 from metrics import ComputeMetricsForNER, ComputeMetricsForNestedNER, extract_entities
-from torch.nn import LSTM
 
 MODEL_CLASS = {
     'linear': BertForLinearHeadNER, 
@@ -97,8 +92,8 @@ def main(_args: List[str] = None):
 
     # ===== Get datasets =====
     if train_args.do_train:
-        train_dataset = EEDataset(data_args.cblue_root, "train", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
-        dev_dataset = EEDataset(data_args.cblue_root, "dev", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
+        train_dataset = SeqTagDataset(data_args.cblue_root, "train", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
+        dev_dataset = SeqTagDataset(data_args.cblue_root, "dev", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
         logger.info(f"Trainset: {len(train_dataset)} samples")
         logger.info(f"Devset: {len(dev_dataset)} samples")
     else:
@@ -111,7 +106,7 @@ def main(_args: List[str] = None):
         model=model,
         tokenizer=tokenizer,
         args=train_args,
-        data_collator=CollateFnForEE(tokenizer.pad_token_id, for_nested_ner=for_nested_ner),
+        data_collator=CollateFnForNER(tokenizer.pad_token_id, for_nested_ner=for_nested_ner),
         train_dataset=train_dataset,
         eval_dataset=dev_dataset,
         compute_metrics=compute_metrics,
@@ -124,7 +119,7 @@ def main(_args: List[str] = None):
             logger.info("Keyboard interrupt")
 
     if train_args.do_predict:
-        test_dataset = EEDataset(data_args.cblue_root, "test", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
+        test_dataset = SeqTagDataset(data_args.cblue_root, "test", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
         logger.info(f"Testset: {len(test_dataset)} samples")
 
         # np.ndarray, None, None
