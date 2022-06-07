@@ -7,15 +7,35 @@ from transformers import set_seed, BertTokenizer, Trainer, HfArgumentParser, Tra
 
 from args import ModelConstructArgs, CBLUEDataArgs
 from logger import get_logger
-from ee_data import SeqTagDataset, EE_NUM_LABELS1, EE_NUM_LABELS2, EE_NUM_LABELS, CollateFnForNER
-from model import BertForCRFHeadNER, BertForLinearHeadNER,  BertForLinearHeadNestedNER, BertForCRFHeadNestedNER
-from metrics import ComputeMetricsForNER, ComputeMetricsForNestedNER, extract_entities
+
+from ee_data import (
+    GlobalPtrDataset,
+    SeqTagDataset,
+    CollateFnForNER,
+    CollateFnForGlobalPtr,
+    EE_NUM_LABELS1,
+    EE_NUM_LABELS2,
+    EE_NUM_LABELS,
+)
+from model import (
+    BertForCRFHeadNER,
+    BertForGlobalPointer,
+    BertForLinearHeadNER,
+    BertForLinearHeadNestedNER,
+    BertForCRFHeadNestedNER
+)
+from metrics import (
+    MetricsForBIOTagging,
+    ComputeMetricsForNestedNER,
+    extract_entities_biotagging
+)
 
 MODEL_CLASS = {
     'linear': BertForLinearHeadNER, 
     'linear_nested': BertForLinearHeadNestedNER,
     'crf': BertForCRFHeadNER,
-    'crf_nested': BertForCRFHeadNestedNER
+    'crf_nested': BertForCRFHeadNestedNER,
+    'global_ptr': BertForGlobalPointer
 }
 
 def get_logger_and_args(logger_name: str, _args: List[str] = None):
@@ -54,11 +74,11 @@ def generate_testing_results(train_args, logger, predictions, test_dataset, for_
         f"Length mismatch: predictions({len(predictions)}), test examples({len(test_dataset.examples)})"
 
     if not for_nested_ner:
-        pred_entities1 = extract_entities(predictions[:, 1:], for_nested_ner=False)
+        pred_entities1 = extract_entities_biotagging(predictions[:, 1:], for_nested_ner=False)
         pred_entities2 = [[]] * len(pred_entities1)
     else:
-        pred_entities1 = extract_entities(predictions[:, 1:, 0], for_nested_ner=True, first_labels=True)
-        pred_entities2 = extract_entities(predictions[:, 1:, 1], for_nested_ner=True, first_labels=False)
+        pred_entities1 = extract_entities_biotagging(predictions[:, 1:, 0], for_nested_ner=True, first_labels=True)
+        pred_entities2 = extract_entities_biotagging(predictions[:, 1:, 1], for_nested_ner=True, first_labels=False)
 
     final_answer = []
 
@@ -92,15 +112,31 @@ def main(_args: List[str] = None):
 
     # ===== Get datasets =====
     if train_args.do_train:
-        train_dataset = SeqTagDataset(data_args.cblue_root, "train", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
-        dev_dataset = SeqTagDataset(data_args.cblue_root, "dev", data_args.max_length, tokenizer, for_nested_ner=for_nested_ner)
+        if model_args.head_type == 'global_ptr':
+            train_dataset = GlobalPtrDataset(
+                data_args.cblue_root,
+                "train", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
+            dev_dataset = GlobalPtrDataset(
+                data_args.cblue_root,
+                "dev", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
+        else:
+            train_dataset = SeqTagDataset(
+                data_args.cblue_root,
+                "train", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
+            dev_dataset = SeqTagDataset(
+                data_args.cblue_root,
+                "dev", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
         logger.info(f"Trainset: {len(train_dataset)} samples")
         logger.info(f"Devset: {len(dev_dataset)} samples")
     else:
         train_dataset = dev_dataset = None
 
     # ===== Trainer =====
-    compute_metrics = ComputeMetricsForNestedNER() if for_nested_ner else ComputeMetricsForNER()
+    compute_metrics = ComputeMetricsForNestedNER() if for_nested_ner else MetricsForBIOTagging()
     
     trainer = Trainer(
         model=model,
