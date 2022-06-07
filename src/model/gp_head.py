@@ -35,7 +35,7 @@ class GlobalPtrHead(nn.Module):
 
         qs = self.pos_embd(qs, self.proj_dim)
         ks = self.pos_embd(ks, self.proj_dim)
-
+        
         logits = torch.einsum('bmhd, bnhd -> bhmn', qs, ks)
 
         # padding mask

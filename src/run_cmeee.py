@@ -62,7 +62,12 @@ def get_model_with_tokenizer(model_args):
     model_class = MODEL_CLASS[model_args.head_type]
 
     if 'nested' not in model_args.head_type:
-        model = model_class.from_pretrained(model_args.model_path, num_labels1=EE_NUM_LABELS)
+        if model_args.head_type == 'global_ptr':
+            model = model_class.from_pretrained(
+                model_args.model_path, num_labels1=9)
+        else:
+            model = model_class.from_pretrained(
+                model_args.model_path, num_labels1=EE_NUM_LABELS)
     else:
         model = model_class.from_pretrained(model_args.model_path, num_labels1=EE_NUM_LABELS1, num_labels2=EE_NUM_LABELS2)
     
