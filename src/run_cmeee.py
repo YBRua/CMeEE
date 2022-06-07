@@ -26,7 +26,8 @@ from model import (
 )
 from metrics import (
     MetricsForBIOTagging,
-    ComputeMetricsForNestedNER,
+    MetricsForNestedBIOTagging,
+    MetricsForGlobalPtr,
     extract_entities_biotagging
 )
 
@@ -136,7 +137,10 @@ def main(_args: List[str] = None):
         train_dataset = dev_dataset = None
 
     # ===== Trainer =====
-    compute_metrics = ComputeMetricsForNestedNER() if for_nested_ner else MetricsForBIOTagging()
+    if model_args.head_type == 'global_ptr':
+        compute_metrics = MetricsForGlobalPtr()
+    else:
+        compute_metrics = MetricsForNestedBIOTagging() if for_nested_ner else MetricsForBIOTagging()
     
     trainer = Trainer(
         model=model,

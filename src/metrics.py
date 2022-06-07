@@ -126,7 +126,7 @@ class MetricsForBIOTagging:  # training_args  `--label_names labels `
         return {"f1": f1}
 
 
-class ComputeMetricsForNestedNER:
+class MetricsForNestedBIOTagging:
     # training_args  `--label_names labels labels2`
     def __call__(self, eval_pred) -> dict:
         predictions, (labels1, labels2) = eval_pred
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     labels1 = np.load('../test_files/labels1_nested.npy')
     labels2 = np.load('../test_files/labels2_nested.npy')
 
-    metrics = ComputeMetricsForNestedNER()(
+    metrics = MetricsForNestedBIOTagging()(
         EvalPrediction(predictions, (labels1, labels2)))
 
     if metrics['f1'] is None:
