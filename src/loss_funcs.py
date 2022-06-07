@@ -18,9 +18,9 @@ class GlobalPtrLoss(nn.Module):
         B, n_labels = y_true.shape[:2]
         y_true = y_true.reshape(B * n_labels, -1)
         y_pred = y_pred.reshape(B * n_labels, -1)
-        return self._multilabel_ce(y_true, y_pred)
+        return self._multilabel_ce(y_pred, y_true)
 
-    def _multilabel_ce(self, y_true: torch.Tensor, y_pred: torch.Tensor):
+    def _multilabel_ce(self, y_pred: torch.Tensor, y_true: torch.Tensor):
         # <https://kexue.fm/archives/7359>
         # -1 -> pos classes, 1 -> neg classes
         y_pred = (1 - 2 * y_true) * y_pred
