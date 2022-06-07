@@ -16,10 +16,15 @@ class _Args:
 
 @dataclass
 class ModelConstructArgs(_Args):
-    model_type: str = field(metadata={"help": "Pretrained model path"})
-    head_type: str = field(metadata={"choices": ["linear", "linear_nested", "crf", "crf_nested"], "help": "Type of head"})
-    model_path: Optional[str] = field(default=None, metadata={"help": "Pretrained model path"})
-    init_model: Optional[int] = field(default=0, metadata={"choices": [0, 1], "help": "Init models' parameters"})
+    model_type: str = field(metadata={
+        "help": "Pretrained model path"})
+    head_type: str = field(metadata={
+        "choices": ["linear", "linear_nested", "crf", "crf_nested", "global_ptr"],
+        "help": "Type of head"})
+    model_path: Optional[str] = field(default=None, metadata={
+        "help": "Pretrained model path"})
+    init_model: Optional[int] = field(default=0, metadata={
+        "choices": [0, 1], "help": "Init models' parameters"})
     
 
 @dataclass
