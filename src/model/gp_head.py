@@ -65,12 +65,13 @@ class RoPE(nn.Module):
             self,
             batch_size,
             seq_len,
-            output_dim) -> torch.Tensor:
+            output_dim,
+            device) -> torch.Tensor:
         # L, 1
-        ks = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(-1)
+        ks = torch.arange(0, seq_len, dtype=torch.float).unsqueeze(-1).to(device)
 
         # L, d // 2
-        indices = torch.arange(0, output_dim // 2, dtype=torch.float)
+        indices = torch.arange(0, output_dim // 2, dtype=torch.float).to(device)
         indices = torch.pow(10000, -2 * indices / output_dim)
         pe = ks * indices
 
@@ -87,7 +88,7 @@ class RoPE(nn.Module):
 
     def forward(self, x: torch.Tensor, output_dim: int):
         B, L = x.shape[:2]
-        pe = self.sinusoidal_position_embedding(B, L, output_dim)
+        pe = self.sinusoidal_position_embedding(B, L, output_dim, x.device)
 
         # B, L, 1, d
         cos_pos = pe[..., None, 1::2].repeat_interleave(2, dim=-1)
