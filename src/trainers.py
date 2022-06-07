@@ -5,7 +5,7 @@ import collections
 from torch.utils.data import Dataset
 from transformers.trainer import Trainer
 from transformers.utils import logging
-from transformers.trainer_utils import speed_metrics, denumpify_detensorize
+from transformers.trainer_utils import speed_metrics
 
 from metrics import MetricsForGlobalPtr
 
