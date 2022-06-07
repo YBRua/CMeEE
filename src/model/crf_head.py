@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torchcrf import CRF
 
 from .ner_outputs import NEROutputs
-from ..ee_data import EE_label2id1, NER_PAD
+from ee_data import EE_label2id1, NER_PAD
 
 
 NER_PAD_ID = EE_label2id1[NER_PAD]

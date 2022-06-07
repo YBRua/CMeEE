@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 
 from .ner_outputs import NEROutputs
-from ..ee_data import EE_label2id1, NER_PAD
-from ..loss_funcs import GlobalPtrLoss
+from ee_data import EE_label2id1, NER_PAD
+from loss_funcs import GlobalPtrLoss
 
 
 NER_PAD_ID = EE_label2id1[NER_PAD]
