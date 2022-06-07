@@ -75,9 +75,6 @@ def get_model_with_tokenizer(model_args):
     return model, tokenizer
 
 
-
-
-
 def main(_args: List[str] = None):
     # ===== Parse arguments =====
     logger, train_args, model_args, data_args = get_logger_and_args(__name__, _args)
@@ -152,13 +149,13 @@ def main(_args: List[str] = None):
         logger.info(f"Testset: {len(test_dataset)} samples")
 
         # np.ndarray, None, None
-        predictions, _labels, _metrics = trainer.predict(test_dataset, metric_key_prefix="predict")
+        if model_args.head_type != 'global_ptr':
+            predictions, _labels, _metrics = trainer.predict(test_dataset, metric_key_prefix="predict")
+        else:
+            logger.info('Supposed to be doing testing here.')
 
         if model_args.head_type == 'global_ptr':
-            gen_result_global_ptr(
-                train_args, logger,
-                predictions, test_dataset,
-                for_nested_ner=for_nested_ner)
+            pass
         else:
             gen_result_bio_tagging(
                 train_args, logger,

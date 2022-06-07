@@ -53,7 +53,7 @@ class GlobalPtrHead(nn.Module):
         if labels is not None:
             loss = self.loss_fct(logits, labels)
 
-        return NEROutputs(loss, logits)
+        return NEROutputs(loss, logits.view(B * L, -1))
 
 
 class RoPE(nn.Module):
