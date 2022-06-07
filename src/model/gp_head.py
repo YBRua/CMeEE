@@ -41,11 +41,11 @@ class GlobalPtrHead(nn.Module):
         # padding mask
         pad_mask = attention_mask.unsqueeze(1).unsqueeze(1).expand(B, self.num_labels, L, L)
         # logits = logits*pad_mask - (1-pad_mask)*1e12
-        logits = torch.masked_fill(~pad_mask.bool(), logits, float('-inf'))
+        logits = torch.masked_fill(logits, ~pad_mask.bool(), float('-inf'))
 
         # tril mask
         tril_mask = torch.tril(torch.ones_like(logits), diagonal=-1)
-        logits = torch.masked_fill(tril_mask.bool(), logits, float('-inf'))
+        logits = torch.masked_fill(logits, tril_mask.bool(), float('-inf'))
         logits = logits / self.proj_dim ** 0.5
 
         loss = None
