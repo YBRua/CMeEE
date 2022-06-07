@@ -86,6 +86,20 @@ class EvalPrediction(NamedTuple):
 
 
 class MetricsForGlobalPtr:
+    def __init__(self) -> None:
+        self.tot_hits = 0
+        self.tot_preds = 0
+        self.tot_trues = 0
+
+    def accumulate(self, preds, labels):
+        preds = torch.gt(preds, 0).float()
+        self.tot_hits += (preds * labels).sum().item()
+        self.tot_preds += preds.sum().item()
+        self.tot_trues += labels.sum().item()
+
+    def summary(self):
+        return {"f1": 2 * self.tot_hits / (self.tot_preds + self.tot_trues)}
+
     def __call__(self, eval_pred) -> dict:
         predictions, labels = eval_pred
         predictions = torch.gt(predictions, 0).float()

@@ -1,12 +1,12 @@
-# srun -p a100 -N 1 -n 1 --gres=gpu:1 --pty /bin/bash
+# srun -p a100 -N 1 -n 1 --gres=gpu:1 --ntasks-per-node=1 --mem=10G --pty /bin/bash
 
 CBLUE_ROOT=../data/CBLUEDatasets
   
 MODEL_TYPE=bert
 MODEL_PATH=../bert-base-chinese
-SEED=2022
+SEED=1337
 LABEL_NAMES=(labels)
-TASK_ID=3
+TASK_ID=4
 
 case ${TASK_ID} in
 0)
@@ -22,6 +22,9 @@ case ${TASK_ID} in
 3)
   HEAD_TYPE=crf_nested
   LABEL_NAMES=(labels labels2)
+  ;;
+4)
+  HEAD_TYPE=global_ptr
   ;;
 *)
   echo "Error ${TASK_ID}"
@@ -67,7 +70,7 @@ python run_cmeee.py \
   --save_total_limit            1 \
   --no_cuda                     false \
   --seed                        ${SEED} \
-  --dataloader_num_workers      8 \
+  --dataloader_num_workers      2 \
   --disable_tqdm                true \
   --load_best_model_at_end      true \
   --metric_for_best_model       f1 \

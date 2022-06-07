@@ -30,6 +30,7 @@ from result_gen import (
     gen_result_bio_tagging,
     gen_result_global_ptr
 )
+from trainers import GlobalPtrTrainer
 
 MODEL_CLASS = {
     'linear': BertForLinearHeadNER, 
@@ -119,15 +120,26 @@ def main(_args: List[str] = None):
         compute_metrics = MetricsForNestedBIOTagging() if for_nested_ner else MetricsForBIOTagging()
         collate_fn = CollateFnForNER(tokenizer.pad_token_id, for_nested_ner=for_nested_ner)
     
-    trainer = Trainer(
-        model=model,
-        tokenizer=tokenizer,
-        args=train_args,
-        data_collator=collate_fn,
-        train_dataset=train_dataset,
-        eval_dataset=dev_dataset,
-        compute_metrics=compute_metrics,
-    )
+    if model_args.head_type == 'global_ptr':
+        trainer = GlobalPtrTrainer(
+            model=model,
+            tokenizer=tokenizer,
+            args=train_args,
+            data_collator=collate_fn,
+            train_dataset=train_dataset,
+            eval_dataset=dev_dataset,
+            compute_metrics=compute_metrics,
+        )
+    else:
+        trainer = Trainer(
+            model=model,
+            tokenizer=tokenizer,
+            args=train_args,
+            data_collator=collate_fn,
+            train_dataset=train_dataset,
+            eval_dataset=dev_dataset,
+            compute_metrics=compute_metrics,
+        )
 
     if train_args.do_train:
         try:

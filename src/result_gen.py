@@ -51,7 +51,7 @@ def gen_result_global_ptr(train_args, logger, predictions, test_dataset, for_nes
         # mask [CLS] and [SEP] token
         pred[:, [0, -1]] -= np.inf
         pred[:, :, [0, -1]] -= np.inf
-        for l, start, end in zip(*np.where(predictions > 0)):
+        for l, start, end in zip(*np.where(pred > 0)):
             entities.append({
                 "start_idx": start - 1,  # compensate for [CLS]
                 "end_idx": end - 1,
