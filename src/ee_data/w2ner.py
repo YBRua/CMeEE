@@ -2,8 +2,7 @@ import re
 import torch
 import pickle
 import numpy as np
-from itertools import repeat
-from os.path import join, exists
+from os.path import join
 from torch.utils.data import Dataset
 
 from typing import List
@@ -14,8 +13,8 @@ from .common import (
     W2_LABEL2ID,
     W2_SUC,
     logger,
-    EE_label2id1, EE_label2id2, EE_label2id,
-    NO_ENT, NER_PAD
+    EE_label2id,
+    NER_PAD
 )
 
 
@@ -37,6 +36,7 @@ class W2NERDataset(Dataset):
         self.data_root = join(cblue_root, "CMeEE")
         self.max_length = max_length
         self.for_nested_ner = for_nested_ner
+        self.mode = mode
 
         # This flag is used in CRF
         self.no_decode = mode.lower() == "train"
