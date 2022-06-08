@@ -2,7 +2,6 @@ import time
 import math
 import torch
 import collections
-import numpy as np
 from torch.utils.data import Dataset
 from transformers.trainer import Trainer
 from transformers.utils import logging
