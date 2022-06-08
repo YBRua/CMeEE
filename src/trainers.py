@@ -2,6 +2,7 @@ import time
 import math
 import torch
 import collections
+import numpy as np
 from torch.utils.data import Dataset
 from transformers.trainer import Trainer
 from transformers.utils import logging
@@ -43,6 +44,19 @@ class GlobalPtrTrainer(Trainer):
                     ignore_keys=ignore_keys)
 
                 tot_predictions.extend(logits)
+
+                # for logit in logits:
+                #     entities = []
+                #     pred = logit.detach().cpu().numpy()  # n_cls, L, L
+                #     pred[:, [0, -1]] -= np.inf
+                #     pred[:, :, [0, -1]] -= np.inf
+
+                #     # NOTE: we are doing part of the decode here
+                #     # to avoid storing large matrices in memory
+                #     for l, start, end in zip(*np.where(pred > 0)):
+                #         entities.append((start, end, l))
+
+                #     tot_predictions.append(entities)
 
         metrics = {}
 

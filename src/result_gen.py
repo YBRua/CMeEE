@@ -43,24 +43,32 @@ def gen_result_global_ptr(train_args, logger, predictions, test_dataset, for_nes
         f"Length mismatch: predictions({len(predictions)}), test examples({len(test_dataset.examples)})"
 
     final_answer = []
-    entities = []
 
     # pred: n_cls, L, L
+    # counter = 0
     for pred, example in zip(predictions, test_dataset.examples):
+        # counter += 1
+        pred = pred.detach().cpu().numpy()
         text = example.text
         # mask [CLS] and [SEP] token
         pred[:, [0, -1]] -= np.inf
         pred[:, :, [0, -1]] -= np.inf
-        for l, start, end in zip(*np.where(pred > 0)):
+        entities = []
+        for lid, start, end in zip(*np.where(pred > 0)):
+        # for start, end, lid in pred:
             entities.append({
-                "start_idx": start - 1,  # compensate for [CLS]
-                "end_idx": end - 1,
-                "type":RAW_ID2LABEL[l],
-                "entity": text[start: end + 1]})
+                "start_idx": start.item() - 1,  # compensate for [CLS]
+                "end_idx": end.item() - 1,
+                "type":RAW_ID2LABEL[lid],
+                "entity": text[start - 1: end]})
         final_answer.append({
             "text": text,
             "entities": entities
         })
+        assert len(final_answer) == counter, (len(final_answer), counter)
+
+        # if counter % 100 == 0:
+        #     print(counter, len(predictions))
 
     with open(os.path.join(train_args.output_dir, "CMeEE_test.json"), "w", encoding="utf8") as f:
         json.dump(final_answer, f, indent=2, ensure_ascii=False)
