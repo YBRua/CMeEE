@@ -15,12 +15,10 @@ class ConditionalLayerNorm(nn.Module):
             cond_dim: int,
             center: bool = True,
             scale: bool = True,
-            epsilon: Optional[float] = None,
-            conditional: bool = True):
+            epsilon: Optional[float] = None,):
         super().__init__()
         self.center = center
         self.scale = scale
-        self.conditional = conditional
         self.epsilon = epsilon or 1e-6
         self.input_dim = in_dim
         self.cond_dim = cond_dim
@@ -28,14 +26,10 @@ class ConditionalLayerNorm(nn.Module):
         self.beta = nn.Parameter(torch.zeros(in_dim)) if center else None
         self.gamma = nn.Parameter(torch.ones(in_dim)) if scale else None
 
-        if self.conditional:
-            if center:
-                self.beta_dense = nn.Linear(cond_dim, in_dim, bias=False)
-            if scale:
-                self.gamma_dense = nn.Linear(cond_dim, in_dim, bias=False)
-        else:
-            self.beta_dense = None
-            self.gamma_dense = None
+        if center:
+            self.beta_dense = nn.Linear(cond_dim, in_dim, bias=False)
+        if scale:
+            self.gamma_dense = nn.Linear(cond_dim, in_dim, bias=False)
 
         self.initialize_weights()
 
@@ -53,22 +47,16 @@ class ConditionalLayerNorm(nn.Module):
         # inputs: B, L, 1, h_in
         # conditions: B, L, h_in
 
-        if self.conditional:
-            for _ in range(len(inputs.shape) - len(conditions.shape)):
-                # B, 1, L, h_c
-                conditions = conditions.unsqueeze(1)
-            
-            if self.center:
-                # B, 1, L, h_in
-                beta = self.beta_dense(conditions) + self.beta
-            if self.scale:
-                # B, 1, L, h_in
-                gamma = self.gamma_dense(conditions) + self.gamma
-        else:
-            if self.center:
-                beta = self.beta
-            if self.scale:
-                gamma = self.gamma
+        for _ in range(len(inputs.shape) - len(conditions.shape)):
+            # B, 1, L, h_c
+            conditions = conditions.unsqueeze(1)
+        
+        if self.center:
+            # B, 1, L, h_in
+            beta = self.beta_dense(conditions) + self.beta
+        if self.scale:
+            # B, 1, L, h_in
+            gamma = self.gamma_dense(conditions) + self.gamma
         
         # B, L, 1, h_in
         outputs = inputs
