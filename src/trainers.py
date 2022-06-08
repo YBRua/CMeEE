@@ -6,7 +6,6 @@ from torch.utils.data import Dataset
 from transformers.trainer import Trainer
 from transformers.utils import logging
 from transformers.trainer_utils import speed_metrics, PredictionOutput
-from tqdm import tqdm
 
 from metrics import MetricsForGlobalPtr, MetricsForW2NER
 
@@ -150,7 +149,7 @@ class W2NERTrainer(Trainer):
 
                 tot_predictions.extend(decode_w2matrix(logits, text_len))
                 if step % 100 == 0:
-                    print(f"Eval step {step} / {len(dataloader)}")
+                    print(f"Test step {step} / {len(dataloader)}")
 
         metrics = {}
 
