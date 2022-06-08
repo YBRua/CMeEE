@@ -141,7 +141,7 @@ class W2NERTrainer(Trainer):
         model.eval()
         with torch.no_grad():
             num_samples = 0
-            for step, inputs in enumerate(tqdm(dataloader)):
+            for step, inputs in enumerate(dataloader):
                 num_samples += len(inputs['input_ids'])
                 text_len = inputs['text_len']
                 loss, logits, labels = self.prediction_step(
@@ -149,6 +149,8 @@ class W2NERTrainer(Trainer):
                     ignore_keys=ignore_keys)
 
                 tot_predictions.extend(decode_w2matrix(logits, text_len))
+                if step % 100 == 0:
+                    print(f"Eval step {step} / {len(dataloader)}")
 
         metrics = {}
 
@@ -190,7 +192,7 @@ class W2NERTrainer(Trainer):
             num_samples = 0
             tot_loss = 0.
             f1_metric = MetricsForW2NER()
-            for step, inputs in enumerate(tqdm(dataloader)):
+            for step, inputs in enumerate(dataloader):
                 batch_size = len(inputs['input_ids'])
                 batch_lengths = inputs['text_len']
                 num_samples += batch_size
