@@ -6,38 +6,45 @@ from args import ModelConstructArgs, CBLUEDataArgs
 from logger import get_logger
 
 from ee_data import (
-    GlobalPtrDataset,
     SeqTagDataset,
-    CollateFnForNER,
+    GlobalPtrDataset,
+    W2NERDataset,
+    CollateFnForSeqTag,
     CollateFnForGlobalPtr,
+    CollateFnForW2NER,
     EE_NUM_LABELS1,
     EE_NUM_LABELS2,
     EE_NUM_LABELS,
+    W2_NUM_LABELS
 )
 from model import (
     BertForCRFHeadNER,
     BertForGlobalPointer,
     BertForLinearHeadNER,
     BertForLinearHeadNestedNER,
-    BertForCRFHeadNestedNER
+    BertForCRFHeadNestedNER,
+    BertForW2NER
 )
 from metrics import (
     MetricsForBIOTagging,
     MetricsForNestedBIOTagging,
     MetricsForGlobalPtr,
+    MetricsForW2NER,
 )
 from result_gen import (
     gen_result_bio_tagging,
-    gen_result_global_ptr
+    gen_result_global_ptr,
+    gen_result_w2ner
 )
-from trainers import GlobalPtrTrainer
+from trainers import GlobalPtrTrainer, W2NERTrainer
 
 MODEL_CLASS = {
     'linear': BertForLinearHeadNER, 
     'linear_nested': BertForLinearHeadNestedNER,
     'crf': BertForCRFHeadNER,
     'crf_nested': BertForCRFHeadNestedNER,
-    'global_ptr': BertForGlobalPointer
+    'global_ptr': BertForGlobalPointer,
+    'w2ner': BertForW2NER
 }
 
 def get_logger_and_args(logger_name: str, _args: List[str] = None):
@@ -66,6 +73,9 @@ def get_model_with_tokenizer(model_args):
         if model_args.head_type == 'global_ptr':
             model = model_class.from_pretrained(
                 model_args.model_path, num_labels1=9)
+        elif model_args.head_type == 'w2ner':
+            model = model_class.from_pretrained(
+                model_args.model_path, num_labels1=W2_NUM_LABELS)
         else:
             model = model_class.from_pretrained(
                 model_args.model_path, num_labels1=EE_NUM_LABELS)
@@ -98,6 +108,15 @@ def main(_args: List[str] = None):
                 data_args.cblue_root,
                 "dev", data_args.max_length,
                 tokenizer, for_nested_ner=for_nested_ner)
+        elif model_args.head_type == 'w2ner':
+            train_dataset = W2NERDataset(
+                data_args.cblue_root,
+                "train", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
+            dev_dataset = W2NERDataset(
+                data_args.cblue_root,
+                "dev", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
         else:
             train_dataset = SeqTagDataset(
                 data_args.cblue_root,
@@ -116,12 +135,25 @@ def main(_args: List[str] = None):
     if model_args.head_type == 'global_ptr':
         compute_metrics = MetricsForGlobalPtr()
         collate_fn = CollateFnForGlobalPtr(tokenizer.pad_token_id)
+    elif model_args.head_type == 'w2ner':
+        compute_metrics = MetricsForW2NER()
+        collate_fn = CollateFnForW2NER(tokenizer.pad_token_id)
     else:
         compute_metrics = MetricsForNestedBIOTagging() if for_nested_ner else MetricsForBIOTagging()
-        collate_fn = CollateFnForNER(tokenizer.pad_token_id, for_nested_ner=for_nested_ner)
+        collate_fn = CollateFnForSeqTag(tokenizer.pad_token_id, for_nested_ner=for_nested_ner)
     
     if model_args.head_type == 'global_ptr':
         trainer = GlobalPtrTrainer(
+            model=model,
+            tokenizer=tokenizer,
+            args=train_args,
+            data_collator=collate_fn,
+            train_dataset=train_dataset,
+            eval_dataset=dev_dataset,
+            compute_metrics=compute_metrics,
+        )
+    elif model_args.head_type == 'w2ner':
+        trainer = W2NERTrainer(
             model=model,
             tokenizer=tokenizer,
             args=train_args,
@@ -165,6 +197,11 @@ def main(_args: List[str] = None):
 
         if model_args.head_type == 'global_ptr':
             gen_result_global_ptr(
+                train_args, logger,
+                predictions, test_dataset,
+                for_nested_ner=for_nested_ner)
+        elif model_args.head_type == 'w2ner':
+            gen_result_w2ner(
                 train_args, logger,
                 predictions, test_dataset,
                 for_nested_ner=for_nested_ner)

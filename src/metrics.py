@@ -4,6 +4,7 @@ import torch
 from ee_data import NER_PAD, _LABEL_RANK
 from ee_data import EE_label2id, EE_label2id1
 from ee_data import EE_id2label1, EE_id2label2, EE_id2label
+from result_gen import decode_w2matrix
 
 from typing import List, Union, NamedTuple, Tuple
 
@@ -107,6 +108,28 @@ class MetricsForGlobalPtr:
 
         return {'f1': f1}
 
+
+class MetricsForW2NER:
+    def __init__(self) -> None:
+        self.tot_hits = 0
+        self.tot_preds = 0
+        self.tot_trues = 0
+
+    def accumulate(self, preds, labels, batch_lengths):
+        preds_decoded = decode_w2matrix(preds, batch_lengths)
+        labels_decoded = decode_w2matrix(labels, batch_lengths)
+
+        for pes, les in zip(preds_decoded, labels_decoded):
+            pes = set(pes)
+            les = set(les)
+            for pe in pes:
+                if pe in les:
+                    self.tot_hits += 1
+            self.tot_preds += len(pes)
+            self.tot_trues += len(les)
+
+    def summary(self):
+        return {"f1": 2 * self.tot_hits / (self.tot_preds + self.tot_trues)}
 
 class MetricsForBIOTagging:  # training_args  `--label_names labels `
     def __call__(self, eval_pred) -> dict:

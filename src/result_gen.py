@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from collections import defaultdict
 
-from typing import Dict, List, Set
+from typing import List, Set, Tuple
 
 from ee_data import RAW_ID2LABEL, NO_ENT
 from ee_data import W2_LABEL2ID, W2_SUC
@@ -81,7 +81,49 @@ def gen_result_global_ptr(train_args, logger, predictions, test_dataset, for_nes
         logger.info(f"`CMeEE_test.json` saved")
 
 
+def gen_result_w2ner(
+        train_args,
+        logger,
+        predictions: List[List[Tuple[int, int, str]]],
+        test_dataset,
+        for_nested_ner=False):
+    assert len(predictions) == len(test_dataset.examples), \
+            f"Length mismatch: predictions({len(predictions)}), test examples({len(test_dataset.examples)})"
+
+    final_answer = []
+    for pred, example in zip(predictions, test_dataset.examples):
+        text = example.text
+        entities = []
+        for start_idx, end_idx, entity_type in pred:
+            entities.append({
+                "start_idx": start_idx,
+                "end_idx": end_idx,
+                "type": entity_type,
+                "entity": text[start_idx: end_idx + 1],
+            })
+        final_answer.append({
+            "text": text,
+            "entities": entities
+        })
+
+    with open(os.path.join(train_args.output_dir, "CMeEE_test.json"), "w", encoding="utf8") as f:
+        json.dump(final_answer, f, indent=2, ensure_ascii=False)
+        logger.info(f"`CMeEE_test.json` saved")
+
+
 def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
+    """Decodes a batch of word-pair matrices.
+    Returns a List of List of Tuples
+    Each List in List contains Tuples of (start, end, entity_type)
+    which indicate entities in current example in current batch
+
+    Args:
+        batch_w2matrices (torch.Tensor): B, L, L Predicted word-pair matrix
+        batch_lenths (torch.Tensor): B, Lengths of each example in batch
+
+    Returns:
+        List[List[Tuple]]: Decoded predictions
+    """
     decoded_entities = []
     for idx, (w2matrix, length) in enumerate(zip(batch_w2matrices, batch_lenths)):
         word2nextword = defaultdict(list)  # dict of lists, each list stores keys of next-words
@@ -124,4 +166,5 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
             entity_type = W2_ID2LABEL[ht2type[(start, end)]]
             entity_tuples.append((start, end, entity_type))
         
-        return entity_tuples
+        decoded_entities.append(entity_tuples)
+    return decoded_entities
