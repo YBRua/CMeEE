@@ -19,7 +19,7 @@ class ConditionalLayerNorm(nn.Module):
         super().__init__()
         self.center = center
         self.scale = scale
-        self.epsilon = epsilon or 1e-6
+        self.epsilon = epsilon or 1e-9
         self.input_dim = in_dim
         self.cond_dim = cond_dim
 
@@ -144,9 +144,9 @@ class BiAffine(nn.Module):
         # x, y: B, L, H
 
         if self.bias_x:
-            x = torch.cat([x, torch.ones_like(x[...,:1])], dim=-1)
+            x = torch.cat([x, torch.ones_like(x[..., :1])], dim=-1)
         if self.bias_y:
-            y = torch.cat([y, torch.ones_like(y[...,:1])], dim=-1)
+            y = torch.cat([y, torch.ones_like(y[..., :1])], dim=-1)
 
         # B, h_out, L, L
         out = torch.einsum('bxi, oij, byj -> boxy', x, self.weight, y)
@@ -285,11 +285,11 @@ class W2NERDecoder(nn.Module):
 
         # LSTM encoding
         hidden_states = self.dropout(hidden_states)
-        packed_inputs = pack_padded_sequence(
+        packed_embs = pack_padded_sequence(
             hidden_states, lengths.cpu(), batch_first=True, enforce_sorted=False)
-        lstm_out, (lstm_h, _) = self.lstm(packed_inputs)
+        packed_outs, (lstm_h, _) = self.lstm(packed_embs)
         hidden_states, _ = pad_packed_sequence(
-            lstm_out, total_length=lengths.max(), batch_first=True)
+            packed_outs, total_length=lengths.max(), batch_first=True)
 
         # conditional layer norm
         # B, L, H -> B, L, L, H
@@ -303,7 +303,7 @@ class W2NERDecoder(nn.Module):
 
         # convolution
         # B, L, L, h_in
-        conv_inputs = torch.cat([cln_out, rel_pos_embd, reg_embd], dim=-1)
+        conv_inputs = torch.cat([rel_pos_embd, reg_embd, cln_out], dim=-1)
         conv_inputs = torch.masked_fill(conv_inputs, grid_mask.eq(0).unsqueeze(-1), 0)
         # B, L, L, h_out * n_dilation
         conv_outputs = self.conv_layer(conv_inputs)
@@ -317,10 +317,10 @@ class W2NERDecoder(nn.Module):
         if labels is not None:
             grid_mask_ = grid_mask.clone()
             loss = self.loss_fct(outputs[grid_mask_], labels[grid_mask_])
-            if not no_decode:
-                # B, L, L
-                logits = outputs.argmax(dim=-1)
+            # B, L, L
+            logits = outputs.argmax(dim=-1)
         else:
             logits = outputs.argmax(dim=-1)
+        assert logits is not None
 
         return NEROutputs(loss, logits)
