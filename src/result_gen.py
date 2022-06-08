@@ -65,7 +65,7 @@ def gen_result_global_ptr(train_args, logger, predictions, test_dataset, for_nes
             "text": text,
             "entities": entities
         })
-        assert len(final_answer) == counter, (len(final_answer), counter)
+        # assert len(final_answer) == counter, (len(final_answer), counter)
 
         # if counter % 100 == 0:
         #     print(counter, len(predictions))
