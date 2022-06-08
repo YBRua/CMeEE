@@ -121,3 +121,65 @@ class W2NERDataset(Dataset):
 
     def __getitem__(self, idx):
         return self.data[idx], self.no_decode
+
+
+class CollateFnForW2NER:
+    def __init__(
+            self,
+            pad_token_id: int,
+            label_pad_token_id: int = EE_label2id[NER_PAD],
+            for_nested_ner: bool = False):
+        self.pad_token_id = pad_token_id
+        self.label_pad_token_id = label_pad_token_id
+        self.for_nested_ner = for_nested_ner
+
+    def __call__(self, batch) -> dict:
+        inputs = [b[0] for b in batch]
+        no_decode_flag = batch[0][1]
+
+        # token_idss: B, L + 2
+        # text_lens: B
+        # rel_poss: B, L, L
+        # grid_masks: B, L, L
+        # w2_labels: B, L, L
+        token_idss, text_lens, rel_poss, grid_masks, w2_labels = map(list, zip(*inputs))
+        w2_labels = w2_labels if w2_labels[0] is not None else None
+
+        max_text_len = max(text_lens)
+        max_input_len = max(len(ids) for ids in token_idss)
+        assert max_text_len + 2 == max_input_len
+
+        token_idss = np.array(token_idss, dtype=np.int)
+        text_lens = np.array(text_lens, dtype=np.int)
+        rel_poss = np.array(rel_poss, dtype=np.int)
+        grid_masks = np.array(grid_masks, dtype=np.bool)
+        w2_labels = np.array(w2_labels, dtype=np.int) if w2_labels is not None else None
+
+        token_idss = self._batched_pad(token_idss, self.pad_token_id, max_input_len)
+        rel_poss = self._batched_pad(rel_poss, 0, max_text_len)
+        grid_masks = self._batched_pad(grid_masks, False, max_text_len)
+        
+        if w2_labels is not None:
+            w2_labels = self._batched_pad(w2_labels, self.label_pad_token_id, max_text_len)
+
+        attention_mask = torch.where(
+            token_idss != self.pad_token_id,
+            torch.ones_like(token_idss),
+            torch.zeros_like(token_idss))
+
+        return {
+            "input_ids": torch.tensor(token_idss, dtype=torch.long),
+            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+            "text_len": torch.tensor(text_lens, dtype=torch.long),
+            "rel_pos": torch.tensor(rel_poss, dtype=torch.long),
+            "grid_mask": torch.tensor(grid_masks, dtype=torch.long),
+            "labels": torch.tensor(w2_labels, dtype=torch.long) if w2_labels is not None else None,
+        }
+
+    def _batched_pad(self, data: np.ndarray, target_len: int, pad_val: int) -> np.ndarray:
+        n_dims = len(data.shape) - 1  # discard batch dim
+        delta_lens = [[0, 0]]
+        for i in range(n_dims):
+            i = i + 1
+            delta_lens.append([0, target_len - data.shape[i]])
+        return np.pad(data, delta_lens, mode='constant', constant_values=pad_val)
