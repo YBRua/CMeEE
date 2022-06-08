@@ -1,3 +1,4 @@
+import time
 import torch
 from transformers import BertTokenizer
 from ee_data import (
@@ -6,7 +7,7 @@ from ee_data import (
     W2NERDataset, CollateFnForW2NER
 )
 
-from metrics import decode_w2matrix
+from metrics import decode_w2matrix, MetricsForW2NER
 
 
 if __name__ == '__main__':
@@ -19,14 +20,14 @@ if __name__ == '__main__':
         # (GlobalPtrDataset, CollateFnForGlobalPtr),
         (W2NERDataset, CollateFnForW2NER)]
     modes = ['dev', 'test']
-    MAX_LEN = 20
-    BATCH_SIZE = 8
+    MAX_LEN = 512
+    BATCH_SIZE = 16
 
     for dataset, collator in testees:
         for mode in modes:
             print(f'Testing {dataset.__name__}. Mode: {mode}')
             dset = dataset(CBLUE_ROOT, mode=mode, max_length=MAX_LEN, tokenizer=tokenizer, for_nested_ner=False)
-            batch = [dset[i] for i in range(BATCH_SIZE)]
+            batch = [dset[100+i] for i in range(BATCH_SIZE)]
             inputs = collator(pad_token_id=tokenizer.pad_token_id, for_nested_ner=False)(batch)
             for key, value in inputs.items():
                 if value is None:
@@ -36,6 +37,8 @@ if __name__ == '__main__':
                 else:
                     print(f'  {key} ({str(type(value))}): {value}')
             if mode == 'dev':
+                print("Inputs ready")
+                start = time.time()
                 print('rel pos')
                 print(inputs['rel_pos'][2])
                 print('grid mask')
@@ -43,4 +46,5 @@ if __name__ == '__main__':
                 print('wordpair label')
                 print(inputs['labels'][2])
                 print('decoded')
-                print(decode_w2matrix(inputs['labels'], inputs['text_len']))
+                # print(decode_w2matrix(inputs['labels'], inputs['text_len']))
+                print(f"Done in {time.time() - start:.6f}s")
