@@ -230,7 +230,7 @@ class W2NERDecoder(nn.Module):
             self,
             hidden_size: int,
             num_labels: int,
-            dropout: float,
+            dropout: float,  # for interface compatibility
             lstm_hid_size: int = 512,
             dist_emb_size: int = 20,
             type_emb_size: int = 20,
