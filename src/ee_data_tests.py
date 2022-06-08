@@ -43,4 +43,4 @@ if __name__ == '__main__':
                 print('wordpair label')
                 print(inputs['labels'][2])
                 print('decoded')
-                print(decode_w2matrix(inputs['labels'][2].unsqueeze(0), inputs['text_len'][2].unsqueeze(0)))
+                print(decode_w2matrix(inputs['labels'], inputs['text_len']))
