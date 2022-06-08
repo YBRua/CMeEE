@@ -2,6 +2,7 @@ from .input_example import InputExample
 from .dataloader import EEDataloader
 from .global_ptr import GlobalPtrDataset, CollateFnForGlobalPtr
 from .seq_tagging import SeqTagDataset, CollateFnForSeqTag
+from .w2ner import W2NERDataset, CollateFnForW2NER
 from .common import (
     LABEL, LABEL1, LABEL2,
     EE_id2label, EE_id2label1, EE_id2label2,

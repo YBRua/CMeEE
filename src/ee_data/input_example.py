@@ -1,4 +1,4 @@
-from .common import RAW_LABEL2ID, NO_ENT
+from .common import RAW_LABEL2ID, NO_ENT, W2_LABEL2ID
 from typing import List
 
 
@@ -8,9 +8,14 @@ class InputExample:
         self.text = text
         self.entities = entities
 
-    def to_begin_end_label_tuples(self):
+    def to_begin_end_label_tuples(self, mode: str = 'gp'):
         """Convert input examples to inputs
         whose labels are (begin, end, type) tuples.
+
+        Args:
+            mode (str): should be one of 'gp' and 'w2'
+                determines the modeling type
+                different modeling types use different label ids
 
         Returns:
             - Training set returns sentence_id, text, label
@@ -20,6 +25,7 @@ class InputExample:
                     the start and end index, and the label id of the entity
             - Test set returns sentence_id, text
         """
+        label2id_mapping = RAW_LABEL2ID if mode == 'gp' else W2_LABEL2ID
         if self.entities is None:
             return self.sentence_id, self.text
         else:
@@ -27,7 +33,7 @@ class InputExample:
             for e in self.entities:
                 start, end, label = e['start_idx'], e['end_idx'], e['type']
                 if start <= end:
-                    labels.append((start, end, RAW_LABEL2ID[label]))
+                    labels.append((start, end, label2id_mapping[label]))
             return self.sentence_id, self.text, labels
 
     def to_word_pair_task(self):

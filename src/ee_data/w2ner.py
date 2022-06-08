@@ -58,10 +58,12 @@ class W2NERDataset(Dataset):
 
         for example in examples:
             if is_test:
-                _sent_id, text = example.to_begin_end_label_tuples()
+                _sent_id, text = example.to_begin_end_label_tuples(mode='w2')
                 labels = None
             else:
-                _sent_id, text, labels = example.to_begin_end_label_tuples()
+                _sent_id, text, labels = example.to_begin_end_label_tuples(mode='w2')
+
+            text = text[:self.max_length - 2]
 
             text_len = len(text)
             wordpair_label = np.zeros((text_len, text_len), dtype=np.int)  # label
@@ -85,6 +87,7 @@ class W2NERDataset(Dataset):
             # we use 20 different relative positional embeddings
             # for relative distances at different ranges
             # <https://github.com/ljynlp/W2NER/blob/main/data_loader.py>
+            assert text_len < 1000, f"Line too long ({text_len}): {text}"
             for k in range(text_len):
                 rel_pos[k, :] += k
                 rel_pos[:, k] -= k
@@ -102,9 +105,11 @@ class W2NERDataset(Dataset):
                 wordpair_label = None
             else:
                 for start, end, lid in labels:
-                    for idx in range(start, end-1):
-                        wordpair_label[idx, idx + 1] = W2_LABEL2ID[W2_SUC]  # next-word
-                    wordpair_label[end, start] = lid  # tail-head-type
+                    if start <= end and end < self.max_length - 2:
+                        # NOTE: do not consider [CLS] here because it will be dropped in the model
+                        for idx in range(start, end):
+                            wordpair_label[idx, idx + 1] = W2_LABEL2ID[W2_SUC]  # next-word
+                        wordpair_label[end, start] = lid  # tail-head-type
 
             data.append((
                 token_ids,
@@ -136,6 +141,7 @@ class CollateFnForW2NER:
     def __call__(self, batch) -> dict:
         inputs = [b[0] for b in batch]
         no_decode_flag = batch[0][1]
+        batch_size = len(inputs)
 
         # token_idss: B, L + 2
         # text_lens: B
@@ -147,25 +153,20 @@ class CollateFnForW2NER:
 
         max_text_len = max(text_lens)
         max_input_len = max(len(ids) for ids in token_idss)
-        assert max_text_len + 2 == max_input_len
+        assert max_text_len + 2 == max_input_len, f'{max_text_len} + 2 != {max_input_len}'
 
-        token_idss = np.array(token_idss, dtype=np.int)
-        text_lens = np.array(text_lens, dtype=np.int)
-        rel_poss = np.array(rel_poss, dtype=np.int)
-        grid_masks = np.array(grid_masks, dtype=np.bool)
-        w2_labels = np.array(w2_labels, dtype=np.int) if w2_labels is not None else None
+        # pad inputs
+        attention_mask = torch.zeros((len(batch), max_input_len), dtype=torch.long)
+        for id, token_ids in enumerate(token_idss):
+            attention_mask[id][:len(token_ids)] = 1
+            _delta_len = max_input_len - len(token_ids)
+            token_idss[id] += [self.pad_token_id] * _delta_len
 
-        token_idss = self._batched_pad(token_idss, self.pad_token_id, max_input_len)
         rel_poss = self._batched_pad(rel_poss, 0, max_text_len)
         grid_masks = self._batched_pad(grid_masks, False, max_text_len)
         
         if w2_labels is not None:
             w2_labels = self._batched_pad(w2_labels, self.label_pad_token_id, max_text_len)
-
-        attention_mask = torch.where(
-            token_idss != self.pad_token_id,
-            torch.ones_like(token_idss),
-            torch.zeros_like(token_idss))
 
         return {
             "input_ids": torch.tensor(token_idss, dtype=torch.long),
@@ -174,12 +175,22 @@ class CollateFnForW2NER:
             "rel_pos": torch.tensor(rel_poss, dtype=torch.long),
             "grid_mask": torch.tensor(grid_masks, dtype=torch.long),
             "labels": torch.tensor(w2_labels, dtype=torch.long) if w2_labels is not None else None,
+            "no_decode": no_decode_flag
         }
 
-    def _batched_pad(self, data: np.ndarray, target_len: int, pad_val: int) -> np.ndarray:
-        n_dims = len(data.shape) - 1  # discard batch dim
-        delta_lens = [[0, 0]]
-        for i in range(n_dims):
-            i = i + 1
-            delta_lens.append([0, target_len - data.shape[i]])
-        return np.pad(data, delta_lens, mode='constant', constant_values=pad_val)
+    def _batched_pad(
+            self,
+            data: List,
+            pad_val: int,
+            target_len: int) -> np.ndarray:
+        n_dims = len(data[0].shape)
+        
+        if n_dims < 1:
+            raise ValueError('Cannot pad scalar data')
+
+        for idx, d in enumerate(data):
+            delta_lens = []
+            for j in range(n_dims):
+                delta_lens.append((0, target_len - d.shape[j]))
+            data[idx] = np.pad(d, delta_lens, 'constant', constant_values=pad_val)
+        return data
