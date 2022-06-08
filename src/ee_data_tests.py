@@ -6,6 +6,8 @@ from ee_data import (
     W2NERDataset, CollateFnForW2NER
 )
 
+from result_gen import decode_w2matrix
+
 if __name__ == '__main__':
     # Unit tests for dataloaders and collate functions
     MODEL_NAME = "../bert-base-chinese"
@@ -34,8 +36,10 @@ if __name__ == '__main__':
                     print(f'  {key} ({str(type(value))}): {value}')
             if mode == 'dev':
                 print('rel pos')
-                print(inputs['rel_pos'][1])
+                print(inputs['rel_pos'][2])
                 print('grid mask')
-                print(inputs['grid_mask'][1])
+                print(inputs['grid_mask'][2])
                 print('wordpair label')
-                print(inputs['labels'][1])
+                print(inputs['labels'][2])
+                print('decoded')
+                print(decode_w2matrix(inputs['labels'][2].unsqueeze(0), inputs['text_len'][2].unsqueeze(0)))
