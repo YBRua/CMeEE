@@ -65,16 +65,16 @@ class SeqTagDataset(Dataset):
 
         for example in examples:
             if is_test:
-                _sentence_id, text = example.to_ner_task(self.for_nested_ner)
+                _sentence_id, text = example.to_bio_tagged_task(self.for_nested_ner)
                 label = repeat(None, len(text))
                 label1 = repeat(None, len(text))
                 label2 = repeat(None, len(text))
             else:
                 if self.for_nested_ner:
                     # For NestedNER, label = (label1, label2)
-                    _sentence_id, text, label1, label2 = example.to_ner_task(self.for_nested_ner)
+                    _sentence_id, text, label1, label2 = example.to_bio_tagged_task(self.for_nested_ner)
                 else:
-                    _sentence_id, text, label = example.to_ner_task(self.for_nested_ner)
+                    _sentence_id, text, label = example.to_bio_tagged_task(self.for_nested_ner)
 
             tokens = []
             label_ids = None if is_test else []

@@ -8,8 +8,9 @@ class InputExample:
         self.text = text
         self.entities = entities
 
-    def to_global_pointer_task(self):
-        """Convert input examples to inputs for Global Pointer modeling.
+    def to_begin_end_label_tuples(self):
+        """Convert input examples to inputs
+        whose labels are (begin, end, type) tuples.
 
         Returns:
             - Training set returns sentence_id, text, label
@@ -32,7 +33,7 @@ class InputExample:
     def to_word_pair_task(self):
         pass
 
-    def to_ner_task(self, for_nested_ner: bool = False):
+    def to_bio_tagged_task(self, for_nested_ner: bool = False):
         """Converts input examples to BIO-Tagging NER input.
 
         Args:

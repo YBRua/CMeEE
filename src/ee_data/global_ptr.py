@@ -55,10 +55,10 @@ class GlobalPtrDataset(Dataset):
 
         for example in examples:
             if is_test:
-                _sent_id, text = example.to_global_pointer_task()
+                _sent_id, text = example.to_begin_end_label_tuples()
                 labels = None
             else:
-                _sent_id, text, labels = example.to_global_pointer_task()
+                _sent_id, text, labels = example.to_begin_end_label_tuples()
             
             # tokenization
             tokens = []
