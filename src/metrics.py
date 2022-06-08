@@ -1,12 +1,73 @@
-import numpy as np
 import torch
+import numpy as np
+from collections import defaultdict
 
 from ee_data import NER_PAD, _LABEL_RANK
 from ee_data import EE_label2id, EE_label2id1
 from ee_data import EE_id2label1, EE_id2label2, EE_id2label
-from result_gen import decode_w2matrix
+from ee_data import W2_LABEL2ID, W2_SUC, W2_ID2LABEL, NO_ENT
 
-from typing import List, Union, NamedTuple, Tuple
+from typing import List, Union, NamedTuple, Tuple, Set
+
+
+def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
+    """Decodes a batch of word-pair matrices.
+    Returns a List of List of Tuples
+    Each List in List contains Tuples of (start, end, entity_type)
+    which indicate entities in current example in current batch
+
+    Args:
+        batch_w2matrices (torch.Tensor): B, L, L Predicted word-pair matrix
+        batch_lenths (torch.Tensor): B, Lengths of each example in batch
+
+    Returns:
+        List[List[Tuple]]: Decoded predictions
+    """
+    decoded_entities = []
+    for idx, (w2matrix, length) in enumerate(zip(batch_w2matrices, batch_lenths)):
+        word2nextword = defaultdict(list)  # dict of lists, each list stores keys of next-words
+        ht2type = defaultdict()
+        head2tail = defaultdict(set)
+        
+        # build next-words
+        for i in range(length):
+            for j in range(i + 1, length):
+                if w2matrix[i, j] == W2_LABEL2ID[W2_SUC]:
+                    word2nextword[i].append(j)
+        # build head-tail and tail-head links
+        for i in range(length):
+            for j in range(i, length):
+                if (
+                    w2matrix[j, i] != W2_LABEL2ID[NO_ENT]
+                    and w2matrix[j, i] != W2_LABEL2ID[W2_SUC]
+                ):
+                    head2tail[i].add(j)
+                    ht2type[(i, j)] = w2matrix[j, i].item()
+
+        # run dfs to find all entities
+        predicts = []
+        def _lattice_dfs(root: int, tails: Set[int], entity: List[int] = []):
+            entity.append(root)
+            if root in tails:
+                predicts.append(entity.copy())
+            if root in word2nextword:
+                for next_word in word2nextword[root]:
+                    _lattice_dfs(next_word, tails, entity)
+            entity.pop()
+
+        for head in word2nextword:
+            _lattice_dfs(head, head2tail[head])
+
+        # convert to 3-tuple
+        entity_tuples = []
+        for pred in predicts:
+            start, end = pred[0], pred[-1]
+            entity_type = W2_ID2LABEL[ht2type[(start, end)]]
+            entity_tuples.append((start, end, entity_type))
+        
+        decoded_entities.append(entity_tuples)
+    return decoded_entities
+
 
 
 def _determine_entity_type(entity: np.ndarray, id2label: dict) -> str:

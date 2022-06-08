@@ -11,7 +11,7 @@ from metrics import MetricsForGlobalPtr, MetricsForW2NER
 
 from typing import Optional, List, Dict
 
-from result_gen import decode_w2matrix
+from metrics import decode_w2matrix
 
 
 logger = logging.get_logger(__name__)
