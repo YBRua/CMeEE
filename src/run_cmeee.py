@@ -185,6 +185,11 @@ def main(_args: List[str] = None):
                 data_args.cblue_root,
                 "test", data_args.max_length,
                 tokenizer, for_nested_ner=for_nested_ner)
+        elif model_args.head_type == 'w2ner':
+            test_dataset = W2NERDataset(
+                data_args.cblue_root,
+                "test", data_args.max_length,
+                tokenizer, for_nested_ner=for_nested_ner)
         else:
             test_dataset = SeqTagDataset(
                 data_args.cblue_root,
