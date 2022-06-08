@@ -304,7 +304,7 @@ class CollateFnForGlobalPtr:
         # input_ids, label_matrix
         # label is None if is not training set
         input_ids = [item[0] for item in batch]
-        label_matrix = [item[1] for item in batch]
+        label_matrix = [item[1] for item in batch] if batch[0][1] is not None else None
         max_len = max(map(len, input_ids))
         attention_mask = torch.zeros((len(batch), max_len), dtype=torch.long)
 
@@ -396,7 +396,7 @@ if __name__ == '__main__':
     CBLUE_ROOT = "../data/CBLUEDatasets"
 
     tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)
-    dataset = GlobalPtrDataset(CBLUE_ROOT, mode="dev", max_length=16, tokenizer=tokenizer, for_nested_ner=False)
+    dataset = GlobalPtrDataset(CBLUE_ROOT, mode="test", max_length=16, tokenizer=tokenizer, for_nested_ner=False)
 
     batch = [dataset[0], dataset[1], dataset[2]]
     inputs = CollateFnForGlobalPtr(pad_token_id=tokenizer.pad_token_id, for_nested_ner=False)(batch)

@@ -161,13 +161,13 @@ def main(_args: List[str] = None):
         logger.info(f"Testset: {len(test_dataset)} samples")
 
         # np.ndarray, None, None
-        if model_args.head_type != 'global_ptr':
-            predictions, _labels, _metrics = trainer.predict(test_dataset, metric_key_prefix="predict")
-        else:
-            logger.info('Supposed to be doing testing here.')
+        predictions, _labels, _metrics = trainer.predict(test_dataset, metric_key_prefix="predict")
 
         if model_args.head_type == 'global_ptr':
-            pass
+            gen_result_global_ptr(
+                train_args, logger,
+                predictions, test_dataset,
+                for_nested_ner=for_nested_ner)
         else:
             gen_result_bio_tagging(
                 train_args, logger,
