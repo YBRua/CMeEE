@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from transformers.trainer import Trainer
 from transformers.utils import logging
 from transformers.trainer_utils import speed_metrics, PredictionOutput
+from tqdm import tqdm
 
 from metrics import MetricsForGlobalPtr, MetricsForW2NER
 
@@ -140,7 +141,7 @@ class W2NERTrainer(Trainer):
         model.eval()
         with torch.no_grad():
             num_samples = 0
-            for step, inputs in enumerate(dataloader):
+            for step, inputs in enumerate(tqdm(dataloader)):
                 num_samples += len(inputs['input_ids'])
                 text_len = inputs['text_len']
                 loss, logits, labels = self.prediction_step(
@@ -189,7 +190,7 @@ class W2NERTrainer(Trainer):
             num_samples = 0
             tot_loss = 0.
             f1_metric = MetricsForW2NER()
-            for step, inputs in enumerate(dataloader):
+            for step, inputs in enumerate(tqdm(dataloader)):
                 batch_size = len(inputs['input_ids'])
                 batch_lengths = inputs['text_len']
                 num_samples += batch_size
@@ -198,6 +199,8 @@ class W2NERTrainer(Trainer):
                     ignore_keys=ignore_keys)
                 tot_loss += loss.item() * batch_size
                 f1_metric.accumulate(logits, labels, batch_lengths)
+                if step % 100 == 0:
+                    print(f"Eval step {step} / {len(dataloader)}")
         avg_loss = tot_loss / num_samples
         metrics = f1_metric.summary()
 
