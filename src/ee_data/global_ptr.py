@@ -39,6 +39,17 @@ class GlobalPtrDataset(Dataset):
         logger.info(f"Cache data to {cache_file}")
 
     def _preprocess(self, examples: List[InputExample], tokenizer) -> List[dict]:
+        """Preprocessor.
+        Convert labels to multi-head label matrices of shape (n_cls, L, L)
+        Tokenizes and converts words to ids.
+
+        Args:
+            examples (List[InputExample]): List of input examples
+            tokenizer (_type_): Bert tokenizer
+
+        Returns:
+            list: returns the list of data to be stored as the dataset
+        """
         is_test = examples[0].entities is None
         data = []
 

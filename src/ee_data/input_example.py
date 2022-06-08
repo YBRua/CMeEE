@@ -9,14 +9,15 @@ class InputExample:
         self.entities = entities
 
     def to_global_pointer_task(self):
-        """将输入实体转换为 Global Pointer 建模方式使用的输入
+        """Convert input examples to inputs for Global Pointer modeling.
 
         Returns:
-            - 训练集返回 sentence_id, text, label
-                - sentence_id 是 sentence 的唯一标识
-                - text 是 sentence 的文本
-                - label 是一个 List of Tuple，每个 Tuple 包含实体的起点、终点和实体类型ID
-            - 测试集仅返回 sentence_id, text
+            - Training set returns sentence_id, text, label
+                - sentence_id: uid for the sentence
+                - text: raw text of the input
+                - label: List of Tuple. Each Tuple contains
+                    the start and end index, and the label id of the entity
+            - Test set returns sentence_id, text
         """
         if self.entities is None:
             return self.sentence_id, self.text
@@ -31,7 +32,19 @@ class InputExample:
     def to_word_pair_task(self):
         pass
 
-    def to_ner_task(self, for_nested_ner: bool = False):    
+    def to_ner_task(self, for_nested_ner: bool = False):
+        """Converts input examples to BIO-Tagging NER input.
+
+        Args:
+            for_nested_ner (bool, optional): Whether to support nested NER.
+
+        Returns:
+            - Training set returns sentence_id, text, label
+                - sentence_id: uid for the sentence
+                - text: raw text of the input
+                - label: BIO-Tagged labels of the tokens
+            - Test set returns sentence_id, text
+        """
         if self.entities is None:
             return self.sentence_id, self.text
         else:

@@ -43,6 +43,17 @@ class SeqTagDataset(Dataset):
         logger.info(f"Cache data to {cache_file}")
 
     def _preprocess(self, examples: List[InputExample], tokenizer) -> list:
+        """Preprocessor.
+        Convert InputExamples to texts and labels (if exist)
+        Tokenizes words and converts words and labels to their ids.
+
+        Args:
+            examples (List[InputExample]): List of input examples
+            tokenizer (_type_): Bert tokenizer
+
+        Returns:
+            list: returns the list of data to be stored as the dataset
+        """
         is_test = examples[0].entities is None
         data = []
 
@@ -124,6 +135,15 @@ class CollateFnForSeqTag:
         self.for_nested_ner = for_nested_ner
        
     def __call__(self, batch) -> dict:
+        """Pads the batch to the longest sequence in the batch.
+        Convert all input data to tensors
+
+        Args:
+            batch: Batch of inputs from a dataloader
+
+        Returns:
+            dict: Input dict for Bert models
+        """
         inputs = [x[0] for x in batch]
         no_decode_flag = batch[0][1]
 
