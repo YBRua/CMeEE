@@ -6,7 +6,8 @@ from ee_data import (
     W2NERDataset, CollateFnForW2NER
 )
 
-from result_gen import decode_w2matrix
+from metrics import decode_w2matrix
+
 
 if __name__ == '__main__':
     # Unit tests for dataloaders and collate functions

@@ -170,10 +170,10 @@ class CollateFnForW2NER:
 
         return {
             "input_ids": torch.tensor(token_idss, dtype=torch.long),
-            "attention_mask": torch.tensor(attention_mask, dtype=torch.long),
+            "attention_mask": attention_mask.long(),
             "text_len": torch.tensor(text_lens, dtype=torch.long),
             "rel_pos": torch.tensor(rel_poss, dtype=torch.long),
-            "grid_mask": torch.tensor(grid_masks, dtype=torch.long),
+            "grid_mask": torch.tensor(grid_masks, dtype=torch.bool),
             "labels": torch.tensor(w2_labels, dtype=torch.long) if w2_labels is not None else None,
             "no_decode": no_decode_flag
         }

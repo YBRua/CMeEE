@@ -277,7 +277,7 @@ class W2NERDecoder(nn.Module):
             num_labels=num_labels,
             hid_size=lstm_hid_size,
             biaffine_size=biaffine_size,
-            ffwd_input_size=conv_out_channels,
+            ffwd_input_size=conv_out_channels * len(conv_dilation),
             ffwd_hid_size=ffwd_hid_size,
             dropout=copredictor_dropout)
 
@@ -298,9 +298,9 @@ class W2NERDecoder(nn.Module):
         # LSTM encoding
         hidden_states = self.dropout(hidden_states)
         packed_inputs = pack_padded_sequence(
-            hidden_states, length=lengths.cpu(), batch_first=True, enforce_sorted=False)
+            hidden_states, lengths.cpu(), batch_first=True, enforce_sorted=False)
         lstm_out, (lstm_h, _) = self.lstm(packed_inputs)
-        hidden_states = pad_packed_sequence(
+        hidden_states, _ = pad_packed_sequence(
             lstm_out, total_length=lengths.max(), batch_first=True)
 
         # conditional layer norm
@@ -313,22 +313,26 @@ class W2NERDecoder(nn.Module):
         reg_inputs = tril_mask + grid_mask.clone().long()
         reg_embd = self.type_embd(reg_inputs)
 
+        # convolution
         # B, L, L, h_in
         conv_inputs = torch.cat([cln_out, rel_pos_embd, reg_embd], dim=-1)
         conv_inputs = torch.masked_fill(conv_inputs, grid_mask.eq(0).unsqueeze(-1), 0)
+        # B, L, L, h_out * n_dilation
         conv_outputs = self.conv_layer(conv_inputs)
         conv_outputs = torch.masked_fill(conv_outputs, grid_mask.eq(0).unsqueeze(-1), 0)
+
+        # prediction
+        # B, L, L, n_cls
         outputs = self.copredictor(hidden_states, hidden_states, conv_outputs)
 
         loss, logits = None, None
         if labels is not None:
             grid_mask_ = grid_mask.clone()
-            print(outputs[grid_mask_].shape)
             loss = self.loss_fct(outputs[grid_mask_], labels[grid_mask_])
             if not no_decode:
                 # B, L, L
-                logits = outputs.argmax(dim=1)
+                logits = outputs.argmax(dim=-1)
         else:
-            logits = outputs.argmax(dim=1)
+            logits = outputs.argmax(dim=-1)
 
         return NEROutputs(loss, logits)
