@@ -25,24 +25,26 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
     """
     decoded_entities = []
     for idx, (w2matrix, length) in enumerate(zip(batch_w2matrices, batch_lenths)):
+        w2matrix_cpu = w2matrix.cpu().numpy()[:length, :length]
         word2nextword = defaultdict(list)  # dict of lists, each list stores keys of next-words
         ht2type = defaultdict()
         head2tail = defaultdict(set)
         
         # build next-words
-        for i in range(length):
-            for j in range(i + 1, length):
-                if w2matrix[i, j] == W2_LABEL2ID[W2_SUC]:
-                    word2nextword[i].append(j)
+        for i, j in np.argwhere(w2matrix_cpu == W2_LABEL2ID[W2_SUC]):
+            i, j = i.item(), j.item()
+            if i > j:
+                continue
+            word2nextword[i].append(j)
+
         # build head-tail and tail-head links
-        for i in range(length):
-            for j in range(i, length):
-                if (
-                    w2matrix[j, i] != W2_LABEL2ID[NO_ENT]
-                    and w2matrix[j, i] != W2_LABEL2ID[W2_SUC]
-                ):
-                    head2tail[i].add(j)
-                    ht2type[(i, j)] = w2matrix[j, i].item()
+        for i, j in np.argwhere(w2matrix_cpu != W2_LABEL2ID[W2_SUC]):
+            i, j = i.item(), j.item()
+            if i > j:
+                continue
+            if w2matrix[j, i] != W2_LABEL2ID[NO_ENT]:
+                head2tail[i].add(j)
+                ht2type[(i, j)] = w2matrix[j, i].item()
 
         # run dfs to find all entities
         predicts = []
@@ -66,8 +68,8 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
             entity_tuples.append((start, end, entity_type))
         
         decoded_entities.append(entity_tuples)
-    return decoded_entities
 
+    return decoded_entities
 
 
 def _determine_entity_type(entity: np.ndarray, id2label: dict) -> str:
