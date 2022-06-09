@@ -24,21 +24,23 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
         List[List[Tuple]]: Decoded predictions
     """
     decoded_entities = []
+    batch_w2matrices = batch_w2matrices.detach().cpu().numpy()
+    batch_lenths = batch_lenths.detach().cpu().numpy()
     for idx, (w2matrix, length) in enumerate(zip(batch_w2matrices, batch_lenths)):
-        w2matrix_cpu = w2matrix.cpu().numpy()[:length, :length]
+        w2matrix = w2matrix[:length, :length]
         word2nextword = defaultdict(list)  # dict of lists, each list stores keys of next-words
         ht2type = defaultdict()
         head2tail = defaultdict(set)
         
         # build next-words
-        for i, j in np.argwhere(w2matrix_cpu == W2_LABEL2ID[W2_SUC]):
+        for i, j in np.argwhere(w2matrix == W2_LABEL2ID[W2_SUC]):
             i, j = i.item(), j.item()
             if i > j:
                 continue
             word2nextword[i].append(j)
 
         # build head-tail and tail-head links
-        for i, j in np.argwhere(w2matrix_cpu != W2_LABEL2ID[W2_SUC]):
+        for i, j in np.argwhere(w2matrix != W2_LABEL2ID[W2_SUC]):
             i, j = i.item(), j.item()
             if i > j:
                 continue
