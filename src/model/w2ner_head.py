@@ -1,8 +1,10 @@
-from turtle import forward
 import torch
 import torch.nn as nn
 
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.nn.utils.rnn import (
+    pack_padded_sequence,
+    pad_packed_sequence
+)
 
 from .ner_outputs import NEROutputs
 from typing import List, Optional
@@ -298,12 +300,12 @@ class W2NERDecoder(nn.Module):
         # embeddings
         rel_pos_embd = self.relative_pos_embd(rel_pos)
         tril_mask = torch.tril(grid_mask.clone().long())
-        reg_inputs = tril_mask + grid_mask.clone().long()
-        reg_embd = self.type_embd(reg_inputs)
+        segment_ids = tril_mask + grid_mask.clone().long()
+        seg_embd = self.type_embd(segment_ids)
 
         # convolution
         # B, L, L, h_in
-        conv_inputs = torch.cat([rel_pos_embd, reg_embd, cln_out], dim=-1)
+        conv_inputs = torch.cat([rel_pos_embd, seg_embd, cln_out], dim=-1)
         conv_inputs = torch.masked_fill(conv_inputs, grid_mask.eq(0).unsqueeze(-1), 0)
         # B, L, L, h_out * n_dilation
         conv_outputs = self.conv_layer(conv_inputs)
@@ -318,9 +320,9 @@ class W2NERDecoder(nn.Module):
             grid_mask_ = grid_mask.clone()
             loss = self.loss_fct(outputs[grid_mask_], labels[grid_mask_])
             # B, L, L
-            logits = outputs.argmax(dim=-1)
+            if not no_decode:
+                logits = outputs.argmax(dim=-1)
         else:
             logits = outputs.argmax(dim=-1)
-        assert logits is not None
 
         return NEROutputs(loss, logits)
