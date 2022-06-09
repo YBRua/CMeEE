@@ -223,7 +223,7 @@ class W2NERDecoder(nn.Module):
             dist_emb_size: int = 20,
             type_emb_size: int = 20,
             emb_dropout: float = 0.5,
-            conv_out_channels: int = 160,
+            conv_out_channels: int = 96,
             conv_dilation: List[int] = [1, 2, 3],
             conv_dropout: float = 0.5,
             biaffine_size: int = 512,

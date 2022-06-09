@@ -1,3 +1,4 @@
+import torch
 from transformers import BertPreTrainedModel, BertConfig, BertModel
 
 from .w2ner_head import W2NERDecoder
@@ -16,6 +17,7 @@ class BertForW2NER(BertPreTrainedModel):
         self.classifier = W2NERDecoder(config.hidden_size, num_labels1, config.hidden_dropout_prob)
         
         self.init_weights()
+        self.last_hidden_only = False
 
     def forward(
             self,
@@ -35,17 +37,34 @@ class BertForW2NER(BertPreTrainedModel):
             text_len=None,
             no_decode=False,
     ):
-        sequence_output = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )[0]
+        if self.last_hidden_only:
+            sequence_output = self.bert(
+                input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )[0]
+        else:
+            sequence_output = self.bert(
+                input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=True,
+                return_dict=return_dict,
+            )
+            sequence_output = torch.stack(
+                # hidden_states
+                sequence_output[2][-4:], dim=-1
+            ).mean(-1)
 
         output = self.classifier.forward(
             hidden_states=sequence_output,
