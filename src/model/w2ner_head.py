@@ -25,22 +25,22 @@ class ConditionalLayerNorm(nn.Module):
         self.input_dim = in_dim
         self.cond_dim = cond_dim
 
-        self.beta = nn.Parameter(torch.zeros(in_dim)) if center else None
-        self.gamma = nn.Parameter(torch.ones(in_dim)) if scale else None
+        self.centerizer = nn.Parameter(torch.zeros(in_dim)) if center else None
+        self.scaler = nn.Parameter(torch.ones(in_dim)) if scale else None
 
         if center:
-            self.beta_dense = nn.Linear(cond_dim, in_dim, bias=False)
+            self.centr_dense = nn.Linear(cond_dim, in_dim, bias=False)
         if scale:
-            self.gamma_dense = nn.Linear(cond_dim, in_dim, bias=False)
+            self.scale_dense = nn.Linear(cond_dim, in_dim, bias=False)
 
         self.initialize_weights()
 
     def initialize_weights(self):
         with torch.no_grad():
-            if self.beta_dense is not None:
-                nn.init.constant_(self.beta_dense.weight, 0)
-            if self.gamma_dense is not None:
-                nn.init.constant_(self.gamma_dense.weight, 0)
+            if self.centr_dense is not None:
+                nn.init.constant_(self.centr_dense.weight, 0)
+            if self.scale_dense is not None:
+                nn.init.constant_(self.scale_dense.weight, 0)
 
     def forward(
             self,
@@ -55,10 +55,10 @@ class ConditionalLayerNorm(nn.Module):
         
         if self.center:
             # B, 1, L, h_in
-            beta = self.beta_dense(conditions) + self.beta
+            beta = self.centr_dense(conditions) + self.centerizer
         if self.scale:
             # B, 1, L, h_in
-            gamma = self.gamma_dense(conditions) + self.gamma
+            gamma = self.scale_dense(conditions) + self.scaler
         
         # B, L, 1, h_in
         outputs = inputs
