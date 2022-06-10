@@ -29,8 +29,8 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
     for idx, (w2matrix, length) in enumerate(zip(batch_w2matrices, batch_lenths)):
         w2matrix = w2matrix[:length, :length]
         word2nextword = defaultdict(list)  # dict of lists, each list stores keys of next-words
-        ht2type = defaultdict()
-        head2tail = defaultdict(set)
+        ht2type = defaultdict()  # maps a head-tail pair (entity) to its type
+        head2tail = defaultdict(set)  # dict of sets, each set stores tail-words of a head-word
         
         # build next-words
         for i, j in np.argwhere(w2matrix == W2_LABEL2ID[W2_SUC]):
