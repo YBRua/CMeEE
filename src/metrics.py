@@ -163,8 +163,26 @@ class MetricsForGlobalPtr:
         self.tot_preds += preds.sum().item()
         self.tot_trues += labels.sum().item()
 
+    def _f1(self):
+        if self.tot_preds == 0 and self.tot_trues == 0:
+            return 0
+        return 2 * self.tot_hits / (self.tot_preds + self.tot_trues)
+
+    def _precision(self):
+        if self.tot_preds == 0:
+            return 0
+        return self.tot_hits / self.tot_preds
+
+    def _recall(self):
+        if self.tot_trues == 0:
+            return 0
+        return self.tot_hits / self.tot_trues
+
     def summary(self):
-        return {"f1": 2 * self.tot_hits / (self.tot_preds + self.tot_trues)}
+        return {
+            "f1": self._f1(),
+            "precision": self._precision(),
+            "recall": self._recall()}
 
     def __call__(self, eval_pred) -> dict:
         predictions, labels = eval_pred
@@ -193,10 +211,43 @@ class MetricsForW2NER:
             self.tot_preds += len(pes)
             self.tot_trues += len(les)
 
+    def _f1(self):
+        if self.tot_preds == 0 and self.tot_trues == 0:
+            return 0
+        return 2 * self.tot_hits / (self.tot_preds + self.tot_trues)
+
+    def _precision(self):
+        if self.tot_preds == 0:
+            return 0
+        return self.tot_hits / self.tot_preds
+
+    def _recall(self):
+        if self.tot_trues == 0:
+            return 0
+        return self.tot_hits / self.tot_trues
+
     def summary(self):
-        return {"f1": 2 * self.tot_hits / (self.tot_preds + self.tot_trues)}
+        return {
+            "f1": self._f1(),
+            "precision": self._precision(),
+            "recall": self._recall()}
 
 class MetricsForBIOTagging:  # training_args  `--label_names labels `
+    def _f1(self, hit, pred, true):
+        if pred == 0 and true == 0:
+            return 0
+        return 2 * hit / (pred + true)
+
+    def _precision(self, hit, pred):
+        if pred == 0:
+            return 0
+        return hit / pred
+    
+    def _recall(self, hit, true):
+        if true == 0:
+            return 0
+        return hit / true
+
     def __call__(self, eval_pred) -> dict:
         predictions, labels = eval_pred
         B, T = predictions.shape
@@ -225,7 +276,10 @@ class MetricsForBIOTagging:  # training_args  `--label_names labels `
 
         f1 = 2 * n_hit / (tot_pred + tot_label)
 
-        return {"f1": f1}
+        return {
+            "f1": self._f1(),
+            "precision": self._precision(),
+            "recall": self._recall()}
 
 
 class MetricsForNestedBIOTagging:
