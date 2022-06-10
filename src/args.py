@@ -25,6 +25,8 @@ class ModelConstructArgs(_Args):
         "help": "Pretrained model path"})
     init_model: Optional[int] = field(default=0, metadata={
         "choices": [0, 1], "help": "Init models' parameters"})
+    align_hyperparams: Optional[int] = field(default=0, metadata={
+        "choices": [0, 1], "help": "W2NER only. Whether to use the same hyper-params as the orignal work"})
     
 
 @dataclass
