@@ -35,7 +35,7 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
         # build next-words
         for i, j in np.argwhere(w2matrix == W2_LABEL2ID[W2_SUC]):
             i, j = i.item(), j.item()
-            if i > j:
+            if i >= j:
                 continue
             word2nextword[i].append(j)
 
