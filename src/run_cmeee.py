@@ -1,6 +1,14 @@
 from typing import List
 
-from transformers import set_seed, BertTokenizer, Trainer, HfArgumentParser, TrainingArguments
+from transformers import (
+    set_seed,
+    BertTokenizer,
+    Trainer,
+    HfArgumentParser,
+    TrainingArguments,
+    AdamW,
+    get_linear_schedule_with_warmup,
+)
 
 from args import ModelConstructArgs, CBLUEDataArgs
 from logger import get_logger
@@ -153,6 +161,27 @@ def main(_args: List[str] = None):
             compute_metrics=compute_metrics,
         )
     elif model_args.head_type == 'w2ner':
+        train_bchsize = train_args.gradient_accumulation_steps * train_args.per_device_train_batch_size
+        updates_total = len(train_dataset) * train_args.num_train_epochs // train_bchsize
+        bert_params = set(model.bert.parameters())
+        other_params = list(set(model.parameters()) - bert_params)
+        no_decay = ['bias', 'LayerNorm.weight']
+        params = [
+            {'params': [p for n, p in model.bert.named_parameters() if not any(nd in n for nd in no_decay)],
+             'lr': 5e-6,
+             'weight_decay': 3e-6},
+            {'params': [p for n, p in model.bert.named_parameters() if any(nd in n for nd in no_decay)],
+             'lr': 5e-6,
+             'weight_decay': 3e-6},
+            {'params': other_params,
+             'lr': 1e-3,
+             'weight_decay': 3e-6},
+        ]
+        optimizer = AdamW(params, lr=1e-3, weight_decay=0.0)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer,
+            num_warmup_steps=0.1 * updates_total,
+            num_training_steps=updates_total)
         trainer = W2NERTrainer(
             model=model,
             tokenizer=tokenizer,
@@ -161,6 +190,7 @@ def main(_args: List[str] = None):
             train_dataset=train_dataset,
             eval_dataset=dev_dataset,
             compute_metrics=compute_metrics,
+            optimizers=(optimizer, scheduler),
         )
     else:
         trainer = Trainer(
