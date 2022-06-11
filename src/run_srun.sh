@@ -3,10 +3,11 @@
 CBLUE_ROOT=../data/CBLUEDatasets
   
 MODEL_TYPE=bert
-MODEL_PATH=../bert-base-chinese
+# MODEL_PATH=../bert-base-chinese
+MODEL_PATH=../ckpts/bert_w2ner_1337/checkpoint-16000
 SEED=1337
 LABEL_NAMES=(labels)
-TASK_ID=4
+TASK_ID=5
 
 case ${TASK_ID} in
 0)
@@ -26,6 +27,9 @@ case ${TASK_ID} in
 4)
   HEAD_TYPE=global_ptr
   ;;
+5)
+  HEAD_TYPE=w2ner
+  ;;
 *)
   echo "Error ${TASK_ID}"
   exit -1
@@ -44,9 +48,11 @@ python run_cmeee.py \
   --do_eval                     true \
   --do_predict                  true \
   \
+  --align_hyperparam           false \
+  \
   --dataloader_pin_memory       False \
   --per_device_train_batch_size 4 \
-  --per_device_eval_batch_size  16 \
+  --per_device_eval_batch_size  8 \
   --gradient_accumulation_steps 4 \
   --eval_accumulation_steps     500 \
   \
@@ -70,7 +76,7 @@ python run_cmeee.py \
   --save_total_limit            1 \
   --no_cuda                     false \
   --seed                        ${SEED} \
-  --dataloader_num_workers      2 \
+  --dataloader_num_workers      8 \
   --disable_tqdm                true \
   --load_best_model_at_end      true \
   --metric_for_best_model       f1 \
