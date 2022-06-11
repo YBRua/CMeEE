@@ -44,7 +44,7 @@ def decode_w2matrix(batch_w2matrices: torch.Tensor, batch_lenths: torch.Tensor):
             i, j = i.item(), j.item()
             if i > j:
                 continue
-            if w2matrix[j, i] != W2_LABEL2ID[NO_ENT]:
+            if w2matrix[j, i] != W2_LABEL2ID[NER_PAD]:
                 head2tail[i].add(j)
                 ht2type[(i, j)] = w2matrix[j, i].item()
 
@@ -231,6 +231,7 @@ class MetricsForW2NER:
             "f1": self._f1(),
             "precision": self._precision(),
             "recall": self._recall()}
+
 
 class MetricsForBIOTagging:  # training_args  `--label_names labels `
     def _f1(self, hit, pred, true):

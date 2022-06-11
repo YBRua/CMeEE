@@ -3,7 +3,7 @@ import math
 import torch
 import collections
 from torch.utils.data import Dataset
-from transformers.trainer import Trainer
+from transformers import Trainer
 from transformers.utils import logging
 from transformers.trainer_utils import speed_metrics, PredictionOutput
 

@@ -12,7 +12,7 @@ LABEL2 = ['sym']
 LABEL  = ['dep', 'equ', 'mic', 'ite', 'dru', 'pro', 'sym', 'dis', 'bod']
 
 W2_SUC = 'suc'
-W2_ID2LABEL = [NO_ENT, W2_SUC] + LABEL
+W2_ID2LABEL = [NER_PAD, W2_SUC] + LABEL
 W2_LABEL2ID = {L: i for i, L in enumerate(W2_ID2LABEL)}
 W2_NUM_LABELS = len(W2_ID2LABEL)
 

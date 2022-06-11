@@ -88,6 +88,7 @@ class W2NERDataset(Dataset):
             # for relative distances at different ranges
             # <https://github.com/ljynlp/W2NER/blob/main/data_loader.py>
             assert text_len < 1000, f"Line too long ({text_len}): {text}"
+
             for k in range(text_len):
                 rel_pos[k, :] += k
                 rel_pos[:, k] -= k
@@ -132,7 +133,7 @@ class CollateFnForW2NER:
     def __init__(
             self,
             pad_token_id: int,
-            label_pad_token_id: int = EE_label2id[NER_PAD],
+            label_pad_token_id: int = W2_LABEL2ID[NER_PAD],
             for_nested_ner: bool = False):
         self.pad_token_id = pad_token_id
         self.label_pad_token_id = label_pad_token_id
