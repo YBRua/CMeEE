@@ -321,9 +321,12 @@ class W2NERDecoder(nn.Module):
         if labels is not None:
             grid_mask_ = grid_mask.clone()
             loss = self.loss_fct(outputs[grid_mask_], labels[grid_mask_])
+
+            # AdAmp, currently not used
             # loss = sum(
             #     w ** 2 * self.loss_fct(outputs[grid_mask_] * w, labels[grid_mask_])
             #     for w in self.adamp_weights)
+
             # B, L, L
             if not no_decode:
                 logits = outputs.argmax(dim=-1)
