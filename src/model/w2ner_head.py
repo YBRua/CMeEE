@@ -273,6 +273,8 @@ class W2NERDecoder(nn.Module):
 
         self.loss_fct = nn.CrossEntropyLoss()
 
+        self.adamp_weights = [0.3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
     def forward(
             self,
             hidden_states: torch.Tensor,
@@ -319,6 +321,9 @@ class W2NERDecoder(nn.Module):
         if labels is not None:
             grid_mask_ = grid_mask.clone()
             loss = self.loss_fct(outputs[grid_mask_], labels[grid_mask_])
+            # loss = sum(
+            #     w ** 2 * self.loss_fct(outputs[grid_mask_] * w, labels[grid_mask_])
+            #     for w in self.adamp_weights)
             # B, L, L
             if not no_decode:
                 logits = outputs.argmax(dim=-1)
