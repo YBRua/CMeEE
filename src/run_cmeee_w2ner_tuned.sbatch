@@ -13,7 +13,7 @@ CBLUE_ROOT=../data/CBLUEDatasets
   
 MODEL_TYPE=bert
 MODEL_PATH=../bert-base-chinese
-# MODEL_PATH=../ckpts/bert_w2ner_1337/checkpoint-17000
+# MODEL_PATH=../ckpts/bert_w2ner_1337/checkpoint-1000
 SEED=1337
 LABEL_NAMES=(labels)
 TASK_ID=5
@@ -45,7 +45,7 @@ case ${TASK_ID} in
   ;;
 esac
 
-OUTPUT_DIR=../ckpts/${MODEL_TYPE}_${HEAD_TYPE}_${SEED}
+OUTPUT_DIR=../ckpts/${MODEL_TYPE}_${HEAD_TYPE}_tuned_${SEED}
 
 PYTHONPATH=../.. \
 python run_cmeee.py \
@@ -57,7 +57,7 @@ python run_cmeee.py \
   --do_eval                     true \
   --do_predict                  true \
   \
-  --align_hyperparam           false \
+  --align_hyperparam           true \
   \
   --dataloader_pin_memory       False \
   --per_device_train_batch_size 4 \
