@@ -204,11 +204,11 @@ class CoPredictor(nn.Module):
         # z: B, L, L, hz
 
         # h,t : B, L, h_biaff
-        h = self.dropout(self.biaffine_proj1(x))
-        t = self.dropout(self.biaffine_proj2(y))
+        sub = self.dropout(self.biaffine_proj1(x))
+        obj = self.dropout(self.biaffine_proj2(y))
 
         # B, L, L, h_out
-        out1 = self.biaffine(h, t)
+        out1 = self.biaffine(sub, obj)
 
         out2 = self.ffwd(self.dropout(self.ffwd_proj(z)))
 
@@ -273,7 +273,7 @@ class W2NERDecoder(nn.Module):
 
         self.loss_fct = nn.CrossEntropyLoss()
 
-        self.adamp_weights = [0.3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        # self.adamp_weights = [0.3, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     def forward(
             self,
